@@ -1,0 +1,34 @@
+[
+  {
+    "id": "qn-01",
+    "page": 2,
+    "division": "Central Kolkata",
+    "title": "Clarification on 'Mdali Park' Entry",
+    "content": "The earlier entry 'Mdali Park' was removed from the route sheet because it appears to be an unclear/duplicate name alongside Mohammad Ali Park. Confirm the intended pandal before adding it back.",
+    "status": "Resolved / Clarified"
+  },
+  {
+    "id": "qn-02",
+    "page": 1,
+    "division": "North Kolkata",
+    "title": "Shobhabazar Rajbari Access Protocol",
+    "content": "Historic family puja; check public access protocols during Ashtami and Sandhi Puja rituals.",
+    "status": "Visitor Advisory"
+  },
+  {
+    "id": "qn-03",
+    "page": 1,
+    "division": "North Kolkata",
+    "title": "Chaltabagan vs Maniktala Chaltabagan",
+    "content": "Maniktala Chaltabagan entry may overlap with Chaltabagan Lohapatty. Kept in directory for completeness but flagged for verification.",
+    "status": "Verification Advisory"
+  },
+  {
+    "id": "qn-04",
+    "page": 6,
+    "division": "Behala & Barisha",
+    "title": "Sabarna Roy Choudhury Aatchala Pujo Access",
+    "content": "Historic family puja dating back to 1610; check access hours and exact gateway pin before travelling.",
+    "status": "Heritage Advisory"
+  }
+]

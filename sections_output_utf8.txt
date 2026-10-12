@@ -1,0 +1,206 @@
+
+================ PAGE 1 ================
+    LINE [6]: KOLKATA DURGA PUJA  2026
+DIVISION: NORTH KOLKATA
+  METRO SECTION: Shobhabazar–Sutanuti Metro station  nearest ~0.3 km
+    LINE [15]: Shobhabazar Rajbari — Historic family puja; check public access.
+    LINE [16]: ~0.3 km
+    LINE [18]: Jagat Mukherjee Park
+    LINE [19]: ~0.5 km
+    LINE [21]: Kumartuli Park
+    LINE [22]: ~0.5 km
+    LINE [24]: Kashi Bose Lane
+    LINE [25]: ~0.7 km
+    LINE [27]: Ahiritola Sarbojanin
+    LINE [28]: ~0.8 km
+  METRO SECTION: Shyambazar Metro station  nearest ~0.3 km
+    LINE [34]: Shyambazar Sarbojanin
+    LINE [35]: ~0.3 km
+    LINE [37]: Hatibagan Sarbojanin — Also accessible from Shobhabazar–Sutanuti.
+    LINE [38]: ~0.4 km
+    LINE [40]: Hatibagan Nabinpally
+    LINE [41]: ~0.5 km
+    LINE [43]: Nalin Sarkar Street
+    LINE [44]: ~0.5 km
+    LINE [46]: Sikdar Bagan Sadharan
+    LINE [47]: ~0.6 km
+    LINE [49]: Bagbazar Sarbojanin
+    LINE [50]: ~1.2 km
+  METRO SECTION: Girish Park Metro station  nearest ~0.6 km
+    LINE [56]: Simla Byayam Samity
+    LINE [57]: ~0.6 km
+    LINE [59]: Chaltabagan Lohapatty — Confirm exact committee listing.
+    LINE [60]: ~0.7 km
+    LINE [62]: Jorasanko Sadharan Durgotsav
+    LINE [63]: ~0.8 km
+    LINE [65]: Maniktala Chaltabagan — May overlap with Chaltabagan Lohapatty.
+    LINE [66]: Check
+  METRO SECTION: Belgachia Metro station  nearest ~1.0 km
+    LINE [72]: Gouribari Sarbojanin — Shyambazar may also be practical; confirm route.
+    LINE [73]: ~1.0 km
+    LINE [75]: Tala Barowari
+    LINE [76]: ~1.0 km
+    LINE [78]: Tala Prattoy
+    LINE [79]: ~1.2 km
+    LINE [81]: Dum Dum Park Bharat Chakra — Dum Dum may also be practical.
+    LINE [82]: ~1.4 km
+    LINE [84]: Dum Dum Park Sarbojanin — Dum Dum may also be practical.
+    LINE [85]: ~1.5 km
+    LINE [87]: Dum Dum Park Tarun Sangha — Dum Dum may also be practical.
+    LINE [88]: ~1.5 km
+    LINE [90]: Sreebhumi Sporting Club — Dum Dum may also be practical.
+    LINE [91]: ~1.5 km
+  METRO SECTION: Location to verify
+    LINE [97]: Lalabagan Yubak Brinda — Exact location not verified.
+    LINE [98]: Check
+    LINE [100]: Surir Bagan Sarbojanin — Exact location not verified.
+    LINE [101]: Check
+
+================ PAGE 2 ================
+    LINE [6]: KOLKATA DURGA PUJA  2026
+DIVISION: CENTRAL KOLKATA
+  METRO SECTION: Sealdah Metro station  nearest ~0.3 km
+    LINE [15]: Sealdah Railway Athletic Club
+    LINE [16]: ~0.3 km
+    LINE [18]: Santosh Mitra Square — MG Road is another option; expect crowds.
+    LINE [19]: ~0.7 km
+  METRO SECTION: MG Road Metro station  nearest ~0.5 km
+    LINE [25]: College Square — Central may also work; famous reflections.
+    LINE [26]: ~0.5 km
+    LINE [28]: Mohammad Ali Park
+    LINE [29]: ~0.5 km
+    LINE [31]: Bowbazar Beniatola — Central may also work; confirm entrance.
+    LINE [32]: ~0.6 km
+    LINE [34]: Quality note: the earlier entry “Mdali Park” was removed because it appears to be an unclear/duplicate name alongside Mohammad Ali Park. Confirm the intended
+    LINE [35]: pandal before adding it back.
+
+================ PAGE 3 ================
+    LINE [1]: KOLKATA DURGA PUJA  2026
+DIVISION: SOUTH KOLKATA
+  METRO SECTION: Rabindra Sarobar Metro station  nearest ~0.3 km
+    LINE [10]: Suruchi Sangha
+    LINE [11]: ~0.5 km
+    LINE [13]: Mudiali Club
+    LINE [14]: ~0.3 km
+    LINE [16]: Shibmandir Sarbojanin
+    LINE [17]: ~0.6 km
+    LINE [19]: Samaj Sebi Sangha
+    LINE [20]: ~0.7 km
+    LINE [22]: Jodhpur Park Sarbojanin — Mahanayak Uttam Kumar may also be practical.
+    LINE [23]: ~1.2 km
+  METRO SECTION: Jatin Das Park Metro station  nearest ~0.4 km
+    LINE [29]: Maddox Square
+    LINE [30]: ~0.4 km
+  METRO SECTION: Kalighat Metro station  nearest ~0.5 km
+    LINE [36]: 66 Pally
+    LINE [37]: ~0.5 km
+    LINE [39]: Badamtala Ashar Sangha
+    LINE [40]: ~0.6 km
+    LINE [42]: Deshapriya Park
+    LINE [43]: ~0.6 km
+    LINE [45]: 64 Pally — Jatin Das Park is another option; verify address.
+    LINE [46]: ~0.8 km
+    LINE [48]: Singhi Park Sarbojanin
+    LINE [49]: ~0.8 km
+    LINE [51]: Tridhara Sammilani
+    LINE [52]: ~0.8 km
+    LINE [54]: Ekdalia Evergreen
+    LINE [55]: ~0.9 km
+    LINE [57]: Ballygunge Cultural Association — Jatin Das Park is another option.
+    LINE [58]: ~1.1 km
+    LINE [60]: Chetla Agrani — Rabindra Sarobar may also be practical.
+    LINE [61]: ~1.1 km
+    LINE [63]: Hindustan Park
+    LINE [64]: ~1.4 km
+  METRO SECTION: Majerhat Metro station  nearest ~1.2 km
+    LINE [70]: Alipore Sarbojanin — Rabindra Sadan is another option.
+    LINE [71]: ~1.2 km
+
+================ PAGE 4 ================
+    LINE [6]: KOLKATA DURGA PUJA  2026
+DIVISION: EAST KOLKATA & SALT LAKE
+  METRO SECTION: Karunamoyee Metro station  nearest ~0.6 km
+    LINE [15]: Salt Lake FD Block
+    LINE [16]: ~0.6 km
+  METRO SECTION: Phoolbagan Metro station  nearest ~0.7 km
+    LINE [22]: Mitali Sangha — Bengal Chemical is another option.
+    LINE [23]: ~0.7 km
+  METRO SECTION: Bidhannagar Road Metro station  nearest ~1.0 km
+    LINE [29]: Ultadanga Pallyshree — Rail access; Dum Dum may also be an option.
+    LINE [30]: ~1.0 km
+
+================ PAGE 5 ================
+    LINE [6]: KOLKATA DURGA PUJA  2026
+DIVISION: NAKTALA & HARIDEVPUR
+  METRO SECTION: Gitanjali Metro station  nearest ~0.7 km
+    LINE [15]: Naktala Udayan Sangha — Masterda Surya Sen may also be practical.
+    LINE [16]: ~0.7 km
+  METRO SECTION: Masterda Surya Sen Metro station  nearest ~0.8 km
+    LINE [22]: Naktala Sammilani Club
+    LINE [23]: ~0.8 km
+  METRO SECTION: Netaji (Kudghat) Metro station  nearest ~0.8 km
+    LINE [29]: Naktala Pally Unnayan Samity
+    LINE [30]: ~0.8 km
+    LINE [32]: Adarsha Samity (Haridevpur)
+    LINE [33]: ~1.1 km
+    LINE [35]: Haridevpur 41 Pally Club — Mahanayak Uttam Kumar may also be practical.
+    LINE [36]: ~1.2 km
+  METRO SECTION: Mahanayak Uttam Kumar Metro station  nearest ~1.2 km
+    LINE [42]: Ajeya Sanghati Club
+    LINE [43]: ~1.2 km
+    LINE [45]: Vivekananda Park Athletic Club
+    LINE [46]: ~1.3 km
+    LINE [48]: Dakshin 41 Pally Club — Sakher Bazar may also be practical.
+    LINE [49]: ~1.4 km
+
+================ PAGE 6 ================
+    LINE [6]: KOLKATA DURGA PUJA  2026
+DIVISION: BEHALA & BARISHA
+  METRO SECTION: Behala Chowrasta Metro station  nearest ~0.2 km
+    LINE [15]: Nabalila Para United Club
+    LINE [16]: ~0.2 km
+    LINE [18]: Barisha Janakalyan Sangha
+    LINE [19]: ~0.4 km
+    LINE [21]: Behala Player's Corner
+    LINE [22]: ~0.4 km
+  METRO SECTION: Behala Bazar Metro station  nearest ~0.3 km
+    LINE [28]: Behala Sonar Durga Bari
+    LINE [29]: ~0.3 km
+    LINE [31]: Behala Trishakti Sangha
+    LINE [32]: ~0.3 km
+    LINE [34]: Behala Natun Dal
+    LINE [35]: ~0.4 km
+    LINE [37]: Behala Friends
+    LINE [38]: ~0.5 km
+    LINE [40]: Behala 11 Pally Youth Association
+    LINE [41]: ~0.6 km
+    LINE [43]: Behala Shree Sangha
+    LINE [44]: ~0.8 km
+    LINE [46]: Mitra Sangha — Verify exact committee location.
+    LINE [47]: ~0.8 km
+    LINE [49]: Pragati Sangha
+    LINE [50]: ~0.9 km
+    LINE [52]: Behala Club Sarbojanin Durgotsav Committee — Taratala may also be practical.
+    LINE [53]: ~1.0 km
+    LINE [55]: Buroshibtala Durga Puja — Taratala may also be practical.
+    LINE [56]: ~1.0 km
+    LINE [58]: Behala Adarshapally
+    LINE [59]: ~1.1 km
+    LINE [61]: Agradut Club — Exact pin not verified.
+    LINE [62]: Check
+    LINE [64]: Bandhudal — Exact pin not verified.
+    LINE [65]: Check
+    LINE [67]: Behala Buroshibtola Janakalyan Sangha — Exact pin not verified.
+    LINE [68]: Check
+    LINE [70]: Sabarna Roy Choudhury Aatchala Pujo — Historic family puja; check access and exact pin.
+    LINE [71]: Check
+  METRO SECTION: Taratala Metro station  nearest ~0.3 km
+    LINE [77]: Behala 29th Pally Club — Behala Chowrasta may also be practical.
+    LINE [78]: ~0.3 km
+    LINE [80]: Parnasree Club Durga Puja Ground — Majerhat/rail access may help.
+    LINE [81]: ~1.4 km
+  METRO SECTION: Sakher Bazar Metro station  nearest ~0.8 km
+    LINE [87]: Barisha Club
+    LINE [88]: ~0.8 km
+    LINE [90]: Chamunda Puja Pandal — Exact pin not verified.
+    LINE [91]: Check
