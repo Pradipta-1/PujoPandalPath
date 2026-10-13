@@ -36,6 +36,9 @@ export interface UserLocation {
   accuracy?: number;
   timestamp?: number;
   addressName?: string;
+  heading?: number | null; // Compass/facing direction in degrees (0° = North)
+  isRealGps?: boolean; // True if acquired via real device satellite/Wi-Fi GPS
+  isAutoSynced?: boolean; // True if acquired via instant auto-sync
 }
 
 export interface RouteStep {

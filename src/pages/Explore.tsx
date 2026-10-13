@@ -41,6 +41,7 @@ interface ExploreProps {
   onMoveUp: (index: number) => void;
   onMoveDown: (index: number) => void;
   onClearItinerary: () => void;
+  onReorderItinerary?: (newItinerary: Pandal[]) => void;
   filters: FilterOptions;
   allMetroStations: string[];
   divisionCounts: Record<string, number>;
@@ -81,6 +82,7 @@ export const Explore: React.FC<ExploreProps> = ({
   onMoveUp,
   onMoveDown,
   onClearItinerary,
+  onReorderItinerary,
   filters,
   allMetroStations,
   divisionCounts,
@@ -102,12 +104,15 @@ export const Explore: React.FC<ExploreProps> = ({
     filters.hasCautionOnly || 
     filters.verificationStatus !== 'all' ||
     (filters.sortBy !== 'user-distance' && filters.sortBy !== 'recommended');
-  const handlePandalSelect = (pandal: Pandal | null) => {
+
+  const itineraryIdSet = React.useMemo(() => new Set(itinerary.map((p) => p.id)), [itinerary]);
+
+  const handlePandalSelect = React.useCallback((pandal: Pandal | null) => {
     onSelectPandal(pandal);
     if (pandal) {
       setMobileTab('details');
     }
-  };
+  }, [onSelectPandal]);
 
   return (
     <div className="relative w-screen h-screen overflow-hidden flex flex-col bg-darkBg-950 text-slate-100 font-sans">
@@ -340,10 +345,12 @@ export const Explore: React.FC<ExploreProps> = ({
               <ItineraryPlanner
                 itinerary={itinerary}
                 userLocation={userLocation}
+                allPandals={allPandals}
                 onRemovePandal={onRemoveFromItinerary}
                 onMoveUp={onMoveUp}
                 onMoveDown={onMoveDown}
                 onClearItinerary={onClearItinerary}
+                onReorderItinerary={onReorderItinerary}
                 onSelectPandal={handlePandalSelect}
               />
             )}
@@ -433,7 +440,7 @@ export const Explore: React.FC<ExploreProps> = ({
                         key={pandal.id}
                         pandal={pandal}
                         isSelected={selectedPandal?.id === pandal.id}
-                        isInItinerary={itinerary.some((p) => p.id === pandal.id)}
+                        isInItinerary={itineraryIdSet.has(pandal.id)}
                         userLocation={userLocation}
                         onSelect={handlePandalSelect}
                         onToggleItinerary={onToggleItinerary}
@@ -555,10 +562,12 @@ export const Explore: React.FC<ExploreProps> = ({
             <ItineraryPlanner
               itinerary={itinerary}
               userLocation={userLocation}
+              allPandals={allPandals}
               onRemovePandal={onRemoveFromItinerary}
               onMoveUp={onMoveUp}
               onMoveDown={onMoveDown}
               onClearItinerary={onClearItinerary}
+              onReorderItinerary={onReorderItinerary}
               onSelectPandal={handlePandalSelect}
             />
           )}
@@ -607,7 +616,7 @@ export const Explore: React.FC<ExploreProps> = ({
                   key={pandal.id}
                   pandal={pandal}
                   isSelected={selectedPandal?.id === pandal.id}
-                  isInItinerary={itinerary.some((p) => p.id === pandal.id)}
+                  isInItinerary={itineraryIdSet.has(pandal.id)}
                   userLocation={userLocation}
                   onSelect={handlePandalSelect}
                   onToggleItinerary={onToggleItinerary}

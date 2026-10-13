@@ -1,10 +1,39 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import type { Pandal, FilterOptions, UserLocation } from '../types/pandal';
 import { calculateWalkingDistance, estimateWalkingMinutes } from '../utils/geo';
 import { searchPandals } from '../utils/search';
 import rawPandals from '../data/pandals.json';
 
 const ALL_PANDALS = rawPandals as Pandal[];
+
+// Pre-computed static metro stations and division counts (never recalculate)
+const ALL_METRO_STATIONS: string[] = (() => {
+  const set = new Set<string>();
+  ALL_PANDALS.forEach((p) => {
+    if (p.nearest_metro && p.nearest_metro !== 'Location to verify') {
+      set.add(p.nearest_metro);
+    }
+  });
+  return Array.from(set).sort();
+})();
+
+const DIVISION_COUNTS: Record<string, number> = (() => {
+  const counts: Record<string, number> = {
+    'North Kolkata': 0,
+    'Central Kolkata': 0,
+    'South Kolkata': 0,
+    'East Kolkata & Salt Lake': 0,
+    'Naktala & Haridevpur': 0,
+    'Behala & Barisha': 0,
+    'Kalyani, Nadia': 0
+  };
+  ALL_PANDALS.forEach((p) => {
+    if (counts[p.area_division] !== undefined) {
+      counts[p.area_division]++;
+    }
+  });
+  return counts;
+})();
 
 export const INITIAL_FILTERS: FilterOptions = {
   searchQuery: '',
@@ -19,25 +48,21 @@ export const INITIAL_FILTERS: FilterOptions = {
 export function usePandalSearch(userLocation?: UserLocation | null) {
   const [filters, setFilters] = useState<FilterOptions>(INITIAL_FILTERS);
 
-  // Automatically ensure user-distance sort is active when location updates
-  useEffect(() => {
-    if (userLocation) {
-      setFilters((prev) => ({
-        ...prev,
-        sortBy: 'user-distance'
-      }));
-    }
-  }, [userLocation?.lat, userLocation?.lng]);
+  // Compute live user pedestrian walking distance only when lat/lng changes
+  const userLat = userLocation?.lat;
+  const userLng = userLocation?.lng;
 
-  // Compute live user pedestrian walking distance on all pandals if user location is present
   const pandalsWithDistance = useMemo(() => {
+    if (userLat == null || userLng == null) {
+      return ALL_PANDALS;
+    }
     return ALL_PANDALS.map((pandal) => {
-      if (!userLocation || !pandal.location_verified || pandal.latitude == null || pandal.longitude == null) {
+      if (!pandal.location_verified || pandal.latitude == null || pandal.longitude == null) {
         return pandal;
       }
       const dist = calculateWalkingDistance(
-        userLocation.lat,
-        userLocation.lng,
+        userLat,
+        userLng,
         pandal.latitude,
         pandal.longitude
       );
@@ -48,18 +73,7 @@ export function usePandalSearch(userLocation?: UserLocation | null) {
         walking_duration_mins: mins
       };
     });
-  }, [userLocation]);
-
-  // Extract all available metro stations for dropdown
-  const allMetroStations = useMemo(() => {
-    const set = new Set<string>();
-    ALL_PANDALS.forEach((p) => {
-      if (p.nearest_metro && p.nearest_metro !== 'Location to verify') {
-        set.add(p.nearest_metro);
-      }
-    });
-    return Array.from(set).sort();
-  }, []);
+  }, [userLat, userLng]);
 
   // Filtered and sorted pandals
   const filteredPandals = useMemo(() => {
@@ -127,33 +141,14 @@ export function usePandalSearch(userLocation?: UserLocation | null) {
     });
 
     return result;
-  }, [pandalsWithDistance, filters, userLocation]);
+  }, [pandalsWithDistance, filters, userLat, userLng]);
 
-  const resetFilters = () => {
+  const resetFilters = useCallback(() => {
     setFilters(INITIAL_FILTERS);
-  };
+  }, []);
 
-  const updateFilter = <K extends keyof FilterOptions>(key: K, value: FilterOptions[K]) => {
+  const updateFilter = useCallback(<K extends keyof FilterOptions>(key: K, value: FilterOptions[K]) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
-  };
-
-  // Division counts
-  const divisionCounts = useMemo(() => {
-    const counts: Record<string, number> = {
-      'North Kolkata': 0,
-      'Central Kolkata': 0,
-      'South Kolkata': 0,
-      'East Kolkata & Salt Lake': 0,
-      'Naktala & Haridevpur': 0,
-      'Behala & Barisha': 0,
-      'Kalyani, Nadia': 0
-    };
-    ALL_PANDALS.forEach((p) => {
-      if (counts[p.area_division] !== undefined) {
-        counts[p.area_division]++;
-      }
-    });
-    return counts;
   }, []);
 
   return {
@@ -164,8 +159,8 @@ export function usePandalSearch(userLocation?: UserLocation | null) {
     verifiedCount: ALL_PANDALS.filter((p) => p.location_verified).length,
     unverifiedCount: ALL_PANDALS.filter((p) => !p.location_verified).length,
     filters,
-    allMetroStations,
-    divisionCounts,
+    allMetroStations: ALL_METRO_STATIONS,
+    divisionCounts: DIVISION_COUNTS,
     updateFilter,
     resetFilters
   };

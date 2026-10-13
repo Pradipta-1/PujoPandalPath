@@ -22,7 +22,7 @@ interface PandalCardProps {
   onStartRoute?: (pandal: Pandal) => void;
 }
 
-export const PandalCard: React.FC<PandalCardProps> = ({
+export const PandalCard: React.FC<PandalCardProps> = React.memo(({
   pandal,
   isSelected = false,
   isInItinerary = false,
@@ -165,4 +165,4 @@ export const PandalCard: React.FC<PandalCardProps> = ({
       </div>
     </div>
   );
-};
+});

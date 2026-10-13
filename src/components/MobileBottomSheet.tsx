@@ -18,7 +18,6 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
 }) => {
   // Purely slideable open vs closed state (NO half/mid levels)
   const [isOpen, setIsOpen] = useState(false);
-  const [dragY, setDragY] = useState<number | null>(null);
 
   // Dynamic dimension tracking
   const [sheetHeight, setSheetHeight] = useState<number>(0);
@@ -68,14 +67,6 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
   const effectiveHeaderHeight = headerHeight || 76;
   const maxTranslate = Math.max(0, effectiveSheetHeight - effectiveHeaderHeight);
 
-  // Current translation in pixels: 0 = fully open, maxTranslate = collapsed peek
-  let currentTranslate = 0;
-  if (dragY !== null) {
-    currentTranslate = Math.max(0, Math.min(maxTranslate, dragY));
-  } else {
-    currentTranslate = isOpen ? 0 : maxTranslate;
-  }
-
   // --- Pointer Drag Handlers on Handle/Header ---
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!e.isPrimary) return;
@@ -98,7 +89,10 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
     lastPointerY.current = e.clientY;
     lastPointerTime.current = performance.now();
     velocity.current = 0;
-    setDragY(startTranslateY.current);
+
+    if (sheetRef.current) {
+      sheetRef.current.style.transition = 'none';
+    }
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -115,7 +109,11 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
     // Rubber-band resistance if dragged past bounds
     if (nextY < 0) nextY = nextY * 0.15;
     if (nextY > maxTranslate) nextY = maxTranslate + (nextY - maxTranslate) * 0.15;
-    setDragY(nextY);
+
+    // Direct DOM translation - 0 React renders during finger movement!
+    if (sheetRef.current) {
+      sheetRef.current.style.transform = `translate3d(0, ${Math.round(nextY)}px, 0)`;
+    }
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -132,22 +130,29 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
     const delta = e.clientY - pointerStartY.current;
     const v = velocity.current;
 
+    let nextIsOpen = isOpen;
     if (isOpen) {
       // Starting from open: if pulled down by > 50px OR fast downward flick, slide close
       if (delta > 50 || v > 0.3) {
-        setIsOpen(false);
+        nextIsOpen = false;
       } else {
-        setIsOpen(true);
+        nextIsOpen = true;
       }
     } else {
       // Starting from closed: if pulled up by > 40px OR fast upward flick, slide open
       if (delta < -40 || v < -0.3) {
-        setIsOpen(true);
+        nextIsOpen = true;
       } else {
-        setIsOpen(false);
+        nextIsOpen = false;
       }
     }
-    setDragY(null);
+
+    if (sheetRef.current) {
+      sheetRef.current.style.transition = 'transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)';
+      const targetY = nextIsOpen ? 0 : maxTranslate;
+      sheetRef.current.style.transform = `translate3d(0, ${Math.round(targetY)}px, 0)`;
+    }
+    setIsOpen(nextIsOpen);
   };
 
   // --- Content Pull-to-Close Handlers (at top of inner scroll) ---
@@ -165,7 +170,11 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
       const delta = e.touches[0].clientY - contentTouchStartY.current;
       if (delta > 20) {
         isPullingContent.current = true;
-        setDragY(delta - 20);
+        const pullY = delta - 20;
+        if (sheetRef.current) {
+          sheetRef.current.style.transition = 'none';
+          sheetRef.current.style.transform = `translate3d(0, ${Math.round(pullY)}px, 0)`;
+        }
       }
     }
   };
@@ -175,17 +184,25 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
       isPullingContent.current = false;
       const endY = e.changedTouches[0]?.clientY || contentTouchStartY.current;
       const delta = endY - contentTouchStartY.current;
-      if (delta > 60) {
-        setIsOpen(false);
+      const nextIsOpen = delta <= 60;
+      if (sheetRef.current) {
+        sheetRef.current.style.transition = 'transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)';
+        const targetY = nextIsOpen ? 0 : maxTranslate;
+        sheetRef.current.style.transform = `translate3d(0, ${Math.round(targetY)}px, 0)`;
       }
-      setDragY(null);
+      setIsOpen(nextIsOpen);
     }
   };
 
   // Toggle open/close directly on tap
   const toggleOpen = () => {
-    setIsOpen((prev) => !prev);
-    setDragY(null);
+    const nextIsOpen = !isOpen;
+    if (sheetRef.current) {
+      sheetRef.current.style.transition = 'transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)';
+      const targetY = nextIsOpen ? 0 : maxTranslate;
+      sheetRef.current.style.transform = `translate3d(0, ${Math.round(targetY)}px, 0)`;
+    }
+    setIsOpen(nextIsOpen);
   };
 
   return (
@@ -194,8 +211,8 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
       style={{
         backgroundColor: '#070d1e',
         zIndex: 2000,
-        transform: `translate3d(0, ${Math.round(currentTranslate)}px, 0)`,
-        transition: dragY !== null ? 'none' : 'transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
+        transform: `translate3d(0, ${isOpen ? 0 : Math.round(maxTranslate)}px, 0)`,
+        transition: 'transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
         willChange: 'transform'
       }}
       className="fixed bottom-0 left-0 right-0 z-[2000] bg-[#070d1e] border-t-2 border-festiveGold-500/70 rounded-t-3xl shadow-[0_-20px_50px_rgba(0,0,0,0.95)] flex flex-col h-[82vh] max-h-[82vh]"

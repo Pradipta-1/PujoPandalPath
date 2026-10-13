@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Pandal, AreaDivision } from './types/pandal';
 import { useGeolocation } from './hooks/useGeolocation';
 import { usePandalSearch } from './hooks/usePandalSearch';
@@ -61,7 +61,7 @@ export function App() {
   } = useRouting();
 
   // Route calculation handler
-  const handleStartRoute = async (destination: Pandal) => {
+  const handleStartRoute = useCallback(async (destination: Pandal) => {
     let origin = userLocation;
     if (!origin) {
       origin = await requestLocation();
@@ -75,18 +75,19 @@ export function App() {
         destination
       );
     }
-  };
+  }, [userLocation, requestLocation, calculateWalkingRoute, setManualLocation]);
 
-  const handlePandalSelect = (pandal: Pandal | null) => {
+  const handlePandalSelect = useCallback((pandal: Pandal | null) => {
     setSelectedPandal(pandal);
-  };
+  }, []);
 
   // Synchronize selectedPandal with latest distance values from allPandals whenever userLocation updates
-  const synchronizedSelectedPandal = selectedPandal
-    ? allPandals.find((p) => p.id === selectedPandal.id) || selectedPandal
-    : null;
+  const synchronizedSelectedPandal = useMemo(() => {
+    if (!selectedPandal) return null;
+    return allPandals.find((p) => p.id === selectedPandal.id) || selectedPandal;
+  }, [selectedPandal, allPandals]);
 
-  const handleToggleItinerary = (pandal: Pandal) => {
+  const handleToggleItinerary = useCallback((pandal: Pandal) => {
     setItinerary((prev) => {
       const exists = prev.some((p) => p.id === pandal.id);
       if (exists) {
@@ -95,13 +96,13 @@ export function App() {
         return [...prev, pandal];
       }
     });
-  };
+  }, []);
 
-  const handleRemoveFromItinerary = (pandalId: string) => {
+  const handleRemoveFromItinerary = useCallback((pandalId: string) => {
     setItinerary((prev) => prev.filter((p) => p.id !== pandalId));
-  };
+  }, []);
 
-  const handleMoveItineraryUp = (index: number) => {
+  const handleMoveItineraryUp = useCallback((index: number) => {
     if (index <= 0) return;
     setItinerary((prev) => {
       const copy = [...prev];
@@ -110,33 +111,37 @@ export function App() {
       copy[index] = temp;
       return copy;
     });
-  };
+  }, []);
 
-  const handleMoveItineraryDown = (index: number) => {
-    if (index >= itinerary.length - 1) return;
+  const handleMoveItineraryDown = useCallback((index: number) => {
     setItinerary((prev) => {
+      if (index >= prev.length - 1) return prev;
       const copy = [...prev];
       const temp = copy[index + 1];
       copy[index + 1] = copy[index];
       copy[index] = temp;
       return copy;
     });
-  };
+  }, []);
 
-  const handleClearItinerary = () => {
+  const handleClearItinerary = useCallback(() => {
     setItinerary([]);
-  };
+  }, []);
+
+  const handleReorderItinerary = useCallback((newItinerary: Pandal[]) => {
+    setItinerary(newItinerary);
+  }, []);
 
   // Switch to explore when selecting a pandal or division from the home landing page
-  const handleSelectPandalFromHome = (pandal: Pandal) => {
+  const handleSelectPandalFromHome = useCallback((pandal: Pandal) => {
     setSelectedPandal(pandal);
     setCurrentView('explore');
-  };
+  }, []);
 
-  const handleSelectDivisionFromHome = (division: AreaDivision) => {
+  const handleSelectDivisionFromHome = useCallback((division: AreaDivision) => {
     updateFilter('division', division);
     setCurrentView('explore');
-  };
+  }, [updateFilter]);
 
   return (
     <div className="w-full min-h-screen bg-darkBg-950 text-slate-100 font-sans selection:bg-festiveRed-600 selection:text-white">
@@ -176,6 +181,7 @@ export function App() {
           onMoveUp={handleMoveItineraryUp}
           onMoveDown={handleMoveItineraryDown}
           onClearItinerary={handleClearItinerary}
+          onReorderItinerary={handleReorderItinerary}
           filters={filters}
           allMetroStations={allMetroStations}
           divisionCounts={divisionCounts}

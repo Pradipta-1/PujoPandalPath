@@ -45,13 +45,25 @@ export const LocationControl: React.FC<LocationControlProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-3 py-2.5 rounded-xl bg-blue-950/70 border border-blue-500/30 text-xs text-sky-200 shadow-md backdrop-blur-md">
           <div className="flex items-center gap-2 min-w-0">
             <span className="relative flex h-2.5 w-2.5 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-sky-500"></span>
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${userLocation.isRealGps ? 'bg-emerald-400' : 'bg-sky-400'} opacity-75`}></span>
+              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${userLocation.isRealGps ? 'bg-emerald-500' : 'bg-sky-500'}`}></span>
             </span>
             <div className="min-w-0 truncate">
-              <span className="truncate font-bold text-white block">
-                {userLocation.addressName || 'Live Device GPS Active'}
-              </span>
+              <div className="flex items-center gap-1.5 truncate">
+                <span className="truncate font-bold text-white block">
+                  {userLocation.addressName || (userLocation.isRealGps ? 'Live Device GPS Active' : 'Auto-synced Location')}
+                </span>
+                {userLocation.isAutoSynced && (
+                  <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-400/30 shrink-0">
+                    Auto-Synced
+                  </span>
+                )}
+                {userLocation.isRealGps && (
+                  <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 shrink-0">
+                    GPS Fix
+                  </span>
+                )}
+              </div>
               <span className="text-[10px] text-sky-300 block">
                 {userLocation.lat.toFixed(4)}°N, {userLocation.lng.toFixed(4)}°E (±{userLocation.accuracy || 15}m)
               </span>

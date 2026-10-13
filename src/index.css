@@ -57,6 +57,12 @@
 /* Watermark-Free Pure Dark Theme for OpenStreetMap Tiles */
 .dark-map-tiles .leaflet-tile {
   filter: brightness(0.68) invert(1) contrast(1.35) hue-rotate(200deg) saturate(0.35) !important;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.leaflet-tile-container {
+  will-change: transform;
 }
 
 /* Custom Festive Leaflet Markers */
@@ -65,6 +71,7 @@
   align-items: center;
   justify-content: center;
   transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  will-change: transform;
 }
 .festive-pin:hover {
   transform: scale(1.18) translateY(-4px);
@@ -85,23 +92,23 @@
 .user-location-pulse .pulse-core {
   width: 16px;
   height: 16px;
-  background: #38bdf8;
-  border: 3px solid #070d1e;
+  background: #0ea5e9;
+  border: 2.5px solid #ffffff;
   border-radius: 50%;
   position: absolute;
   top: 4px;
   left: 4px;
-  box-shadow: 0 0 12px rgba(56, 189, 248, 0.9);
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.95), 0 2px 5px rgba(0, 0, 0, 0.7);
 }
 .user-location-pulse .pulse-wave {
   width: 32px;
   height: 32px;
-  background: rgba(56, 189, 248, 0.4);
+  background: rgba(56, 189, 248, 0.35);
   border-radius: 50%;
   position: absolute;
   top: -4px;
   left: -4px;
-  animation: userPing 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+  animation: userPing 2.2s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
 
 @keyframes userPing {

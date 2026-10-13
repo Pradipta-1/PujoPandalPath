@@ -31,17 +31,24 @@ export const POPULAR_STARTING_POINTS = [
 export const DEFAULT_STARTING_LOCATION: UserLocation = {
   lat: 22.5645,
   lng: 88.3524,
-  accuracy: 100,
+  accuracy: 1000,
   timestamp: Date.now(),
-  addressName: 'Live Location (Kolkata Central)'
+  addressName: 'Kolkata Central (Syncing...)',
+  isRealGps: false,
+  isAutoSynced: false
 };
 
 export function useGeolocation(): UseGeolocationReturn {
-  // 1. Instantly restore cached location at 0ms, or default to central Kolkata so location is never null
+  // 1. Instantly restore valid cached location if available, or start with default
   const [userLocation, setUserLocation] = useState<UserLocation | null>(() => {
     try {
       const saved = localStorage.getItem('pandalpath_user_loc');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed?.lat === 'number' && typeof parsed?.lng === 'number' && parsed.lat !== 0) {
+          return parsed;
+        }
+      }
     } catch {
       // ignore
     }
@@ -53,7 +60,8 @@ export function useGeolocation(): UseGeolocationReturn {
   const [permissionStatus, setPermissionStatus] = useState<UseGeolocationReturn['permissionStatus']>(null);
   const [isLiveTracking, setIsLiveTracking] = useState(false);
   const watchIdRef = useRef<number | null>(null);
-  const hasAttemptedGps = useRef<boolean>(false);
+  const isRealGpsAcquiredRef = useRef<boolean>(false);
+  const lastCoordsRef = useRef<{ lat: number; lng: number; accuracy: number } | null>(null);
 
   // Sync to localStorage
   const saveLocation = useCallback((loc: UserLocation | null) => {
@@ -77,12 +85,30 @@ export function useGeolocation(): UseGeolocationReturn {
     setIsLiveTracking(true);
     watchIdRef.current = navigator.geolocation.watchPosition(
       (position) => {
+        const newLat = Number(position.coords.latitude.toFixed(6));
+        const newLng = Number(position.coords.longitude.toFixed(6));
+        const newAcc = Math.round(position.coords.accuracy);
+
+        // Filter out micro-jitter under ~3m to prevent unnecessary whole-app recalculations
+        if (lastCoordsRef.current) {
+          const dLat = Math.abs(newLat - lastCoordsRef.current.lat);
+          const dLng = Math.abs(newLng - lastCoordsRef.current.lng);
+          if (dLat < 0.00003 && dLng < 0.00003 && Math.abs(newAcc - lastCoordsRef.current.accuracy) < 15) {
+            return;
+          }
+        }
+        lastCoordsRef.current = { lat: newLat, lng: newLng, accuracy: newAcc };
+        isRealGpsAcquiredRef.current = true;
+
         const loc: UserLocation = {
-          lat: Number(position.coords.latitude.toFixed(6)),
-          lng: Number(position.coords.longitude.toFixed(6)),
-          accuracy: Math.round(position.coords.accuracy),
+          lat: newLat,
+          lng: newLng,
+          accuracy: newAcc,
           timestamp: position.timestamp,
-          addressName: 'Live Device GPS'
+          addressName: 'Live Device GPS',
+          heading: typeof position.coords.heading === 'number' && !isNaN(position.coords.heading) ? position.coords.heading : null,
+          isRealGps: true,
+          isAutoSynced: true
         };
         saveLocation(loc);
         setError(null);
@@ -94,7 +120,7 @@ export function useGeolocation(): UseGeolocationReturn {
       {
         enableHighAccuracy: true,
         maximumAge: 5000,
-        timeout: 12000
+        timeout: 10000
       }
     );
   }, [saveLocation]);
@@ -107,41 +133,41 @@ export function useGeolocation(): UseGeolocationReturn {
     setIsLiveTracking(false);
   }, []);
 
-  // Silent IP Geolocation Fallback (Works with 0 clicks and 0 permissions)
+  // Instant Parallel Network/IP Geolocation Fallback (<300ms, 0 permissions required)
   const fetchIpLocation = useCallback(async () => {
+    if (isRealGpsAcquiredRef.current) return;
+
     const apis = [
-      { url: 'https://ipapi.co/json/', latKey: 'latitude', lngKey: 'longitude', cityKey: 'city' },
+      { url: 'https://ipwho.is/', latKey: 'latitude', lngKey: 'longitude', cityKey: 'city' },
       { url: 'https://freeipapi.com/api/json', latKey: 'latitude', lngKey: 'longitude', cityKey: 'cityName' },
-      { url: 'https://ipwho.is/', latKey: 'latitude', lngKey: 'longitude', cityKey: 'city' }
+      { url: 'https://ipapi.co/json/', latKey: 'latitude', lngKey: 'longitude', cityKey: 'city' }
     ];
 
     for (const api of apis) {
+      if (isRealGpsAcquiredRef.current) return;
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2500);
+        const timeoutId = setTimeout(() => controller.abort(), 2000);
         const res = await fetch(api.url, { signal: controller.signal });
         clearTimeout(timeoutId);
         if (res.ok) {
           const data = await res.json();
           const lat = data[api.latKey];
           const lng = data[api.lngKey];
-          if (typeof lat === 'number' && typeof lng === 'number') {
+          if (typeof lat === 'number' && typeof lng === 'number' && !isNaN(lat) && !isNaN(lng) && lat !== 0) {
+            if (isRealGpsAcquiredRef.current) return;
             const cityName = data[api.cityKey] || 'Kolkata';
             const loc: UserLocation = {
               lat: Number(lat.toFixed(6)),
               lng: Number(lng.toFixed(6)),
-              accuracy: 600,
+              accuracy: 450,
               timestamp: Date.now(),
-              addressName: `${cityName} (Auto-synced)`
+              addressName: `${cityName} (Auto-synced)`,
+              isRealGps: false,
+              isAutoSynced: true
             };
-            setUserLocation((prev) => {
-              // Only apply if GPS hasn't already provided accurate device coordinates
-              if (!prev || prev.addressName?.includes('Auto-synced') || prev.addressName?.includes('Default')) {
-                saveLocation(loc);
-                return loc;
-              }
-              return prev;
-            });
+            saveLocation(loc);
+            setIsLoading(false);
             return;
           }
         }
@@ -149,83 +175,77 @@ export function useGeolocation(): UseGeolocationReturn {
         // Continue to next endpoint
       }
     }
-
-    // Default to central Kolkata hub (Esplanade / Dharmatala) so user is immediately synced
-    setUserLocation((prev) => {
-      if (!prev) {
-        const defaultLoc: UserLocation = {
-          lat: 22.5645,
-          lng: 88.3524,
-          accuracy: 500,
-          timestamp: Date.now(),
-          addressName: 'Kolkata Central (Auto-synced)'
-        };
-        saveLocation(defaultLoc);
-        return defaultLoc;
-      }
-      return prev;
-    });
   }, [saveLocation]);
 
-  // Request location with two-tier fallback: High accuracy GPS first, then Wi-Fi/IP fallback
+  // Request location with resilient multi-tier fallback: High accuracy GPS, then Wi-Fi, then IP
   const requestLocation = useCallback(async (): Promise<UserLocation | null> => {
-    if (!navigator.geolocation) {
+    setIsLoading(true);
+    setError(null);
+
+    // Trigger fast IP fallback in parallel if real GPS is not yet acquired
+    if (!isRealGpsAcquiredRef.current) {
       fetchIpLocation();
+    }
+
+    if (!navigator.geolocation) {
+      setIsLoading(false);
       setPermissionStatus('unavailable');
       return null;
     }
 
-    setIsLoading(true);
-    setError(null);
-
     return new Promise((resolve) => {
+      let resolved = false;
+
       const onSuccess = (position: GeolocationPosition) => {
+        if (resolved) return;
+        resolved = true;
+        isRealGpsAcquiredRef.current = true;
+
         const loc: UserLocation = {
           lat: Number(position.coords.latitude.toFixed(6)),
           lng: Number(position.coords.longitude.toFixed(6)),
           accuracy: Math.round(position.coords.accuracy),
           timestamp: position.timestamp,
-          addressName: 'Live Device GPS'
+          addressName: 'Live Device GPS',
+          heading: typeof position.coords.heading === 'number' && !isNaN(position.coords.heading) ? position.coords.heading : null,
+          isRealGps: true,
+          isAutoSynced: true
         };
         saveLocation(loc);
         setIsLoading(false);
+        setError(null);
         setPermissionStatus('granted');
         startLiveTracking();
         resolve(loc);
       };
 
       const onError = (err: GeolocationPositionError) => {
-        // If high accuracy timed out on PC/Laptop without satellite GPS, retry with standard Wi-Fi
-        if (err.code === err.TIMEOUT) {
-          navigator.geolocation.getCurrentPosition(
-            onSuccess,
-            () => {
-              setIsLoading(false);
-              setPermissionStatus('timeout');
-              fetchIpLocation();
-              resolve(null);
-            },
-            { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
-          );
-          return;
-        }
+        if (resolved) return;
 
-        setIsLoading(false);
-        if (err.code === err.PERMISSION_DENIED) {
-          setPermissionStatus('denied');
-        } else if (err.code === err.POSITION_UNAVAILABLE) {
-          setPermissionStatus('unavailable');
-        }
-        // Seamlessly ensure user still has auto-synced location via IP fallback
-        fetchIpLocation();
-        resolve(null);
+        // Fast fallback to low accuracy / Wi-Fi positioning (instant on laptops & PCs)
+        navigator.geolocation.getCurrentPosition(
+          onSuccess,
+          (err2) => {
+            if (resolved) return;
+            resolved = true;
+            setIsLoading(false);
+            if (err.code === err.PERMISSION_DENIED || err2.code === err2.PERMISSION_DENIED) {
+              setPermissionStatus('denied');
+            } else {
+              setPermissionStatus('unavailable');
+            }
+            fetchIpLocation();
+            resolve(null);
+          },
+          { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
+        );
       };
 
-      // Tier 1: High accuracy GPS request
+      // Try high accuracy with a 4s timeout so laptops/PCs don't hang
       navigator.geolocation.getCurrentPosition(onSuccess, onError, {
         enableHighAccuracy: true,
-        timeout: 8000,
-        maximumAge: 10000
+        timeout: 4000,
+        maximumAge: 15000
       });
     });
   }, [saveLocation, startLiveTracking, fetchIpLocation]);
@@ -241,15 +261,10 @@ export function useGeolocation(): UseGeolocationReturn {
 
   // Instant Auto-Sync on Website Load (Zero Clicks)
   useEffect(() => {
-    if (hasAttemptedGps.current) return;
-    hasAttemptedGps.current = true;
+    // 1. Immediately trigger fast parallel IP auto-sync (<300ms)
+    fetchIpLocation();
 
-    // 1. If not cached, immediately trigger silent IP fallback so location is synced in <300ms
-    if (!userLocation) {
-      fetchIpLocation();
-    }
-
-    // 2. Immediately trigger live device GPS synchronization (silent if permission granted)
+    // 2. Immediately trigger live device GPS synchronization
     requestLocation().then((loc) => {
       if (loc) {
         startLiveTracking();
@@ -277,22 +292,26 @@ export function useGeolocation(): UseGeolocationReturn {
           // ignore
         });
     }
-  }, [requestLocation, startLiveTracking, fetchIpLocation, userLocation]);
+  }, [requestLocation, startLiveTracking, fetchIpLocation]);
 
   const clearLocation = useCallback(() => {
     stopLiveTracking();
+    isRealGpsAcquiredRef.current = false;
     saveLocation(null);
     setError(null);
   }, [saveLocation, stopLiveTracking]);
 
   const setManualLocation = useCallback((lat: number, lng: number, name = 'Selected Hub') => {
     stopLiveTracking();
+    isRealGpsAcquiredRef.current = false;
     const loc: UserLocation = {
       lat: Number(lat.toFixed(6)),
       lng: Number(lng.toFixed(6)),
       accuracy: 25,
       timestamp: Date.now(),
-      addressName: name
+      addressName: name,
+      isRealGps: false,
+      isAutoSynced: false
     };
     saveLocation(loc);
     setError(null);

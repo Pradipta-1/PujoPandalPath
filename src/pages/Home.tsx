@@ -339,9 +339,7 @@ export const Home: React.FC<HomeProps> = ({
           <MapView
             pandals={displayedPandals}
             selectedPandal={selectedPandal || null}
-            onSelectPandal={(pandal) => {
-              onSelectPandal(pandal);
-            }}
+            onSelectPandal={onSelectPandal}
             userLocation={userLocation}
             activeRoute={activeRoute || null}
             onRequestLocation={onRequestLocation}

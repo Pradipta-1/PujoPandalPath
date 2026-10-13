@@ -15,9 +15,14 @@ import type { Pandal } from '../types/pandal';
  * - ch / c
  * - or / ar (e.g. Kumartuli / Kumortuli)
  */
+const phoneticCache = new Map<string, string>();
+
 export function phoneticNormalize(str: string): string {
   if (!str) return '';
-  return str
+  const cached = phoneticCache.get(str);
+  if (cached !== undefined) return cached;
+
+  const res = str
     .toLowerCase()
     .replace(/sh/g, 's')
     .replace(/ee/g, 'i')
@@ -30,10 +35,14 @@ export function phoneticNormalize(str: string): string {
     .replace(/ph/g, 'p')
     .replace(/v/g, 'b')
     .replace(/y/g, 'i')
+    .replace(/z/g, 'j')
     .replace(/ch/g, 'c')
     .replace(/aa/g, 'a')
     .replace(/or/g, 'ar')
     .replace(/[^a-z0-9]/g, '');
+
+  phoneticCache.set(str, res);
+  return res;
 }
 
 /**
