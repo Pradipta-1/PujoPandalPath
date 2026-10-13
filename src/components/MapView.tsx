@@ -177,19 +177,29 @@ export const MapView: React.FC<MapViewProps> = ({
   // Active Map state ensuring markers and location layers bind cleanly upon initialization & remount
   const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
 
-  // Sets target heading angle for ultra-smooth 60/120fps hardware-accelerated interpolation
+  // Updates target heading with low-pass noise filter and smooth 60fps tracking
   const applyHeadingRotation = (headingDeg: number) => {
-    targetHeadingAngleRef.current = ((headingDeg % 360) + 360) % 360;
+    const normalizedRaw = ((headingDeg % 360) + 360) % 360;
     hasHeadingSensorRef.current = true;
+
     if (!isHeadingInitializedRef.current) {
-      currentHeadingAngleRef.current = targetHeadingAngleRef.current;
+      currentHeadingAngleRef.current = normalizedRaw;
+      targetHeadingAngleRef.current = normalizedRaw;
       isHeadingInitializedRef.current = true;
       const coneEl = document.querySelector('.user-heading-cone') as HTMLElement | null;
       if (coneEl) {
-        coneEl.style.transform = `rotate(${currentHeadingAngleRef.current}deg)`;
+        coneEl.style.transform = `rotate(${normalizedRaw}deg)`;
         coneEl.style.opacity = '1';
       }
+      return;
     }
+
+    // Shortest angular difference to current target
+    const diff = ((normalizedRaw - targetHeadingAngleRef.current) % 360 + 540) % 360 - 180;
+    // Suppress tiny sensor fluctuations (< 0.8°) while holding still
+    if (Math.abs(diff) < 0.8) return;
+
+    targetHeadingAngleRef.current = ((targetHeadingAngleRef.current + diff) % 360 + 360) % 360;
   };
 
   // Triggers compass sensor permissions on iOS Safari 13+ upon user gesture
@@ -206,28 +216,8 @@ export const MapView: React.FC<MapViewProps> = ({
     }
   };
 
-  // 3D Tilt-compensated compass heading calculator for mobile devices held at natural viewing angles
-  const computeTiltCompensatedHeading = (alpha: number, beta: number, gamma: number): number => {
-    const deg2rad = Math.PI / 180;
-    const x = (beta || 0) * deg2rad; // Pitch
-    const y = (gamma || 0) * deg2rad; // Roll
-    const z = (alpha || 0) * deg2rad; // Yaw
-
-    const cX = Math.cos(x);
-    const cZ = Math.cos(z);
-    const sX = Math.sin(x);
-    const sY = Math.sin(y);
-    const sZ = Math.sin(z);
-
-    // Vector pointing out of the TOP of the device in world coordinates
-    const vEast = -cZ * sY * sX - sZ * cX;
-    const vNorth = -sZ * sY * sX + cZ * cX;
-
-    let compass = Math.atan2(vEast, vNorth) * (180 / Math.PI);
-    return ((compass % 360) + 360) % 360;
-  };
-
-  // 60fps/120fps requestAnimationFrame continuous damping loop for zero-lag, jitter-free spotlight rotation
+  // 60fps/120fps requestAnimationFrame continuous damping loop with stationary deadzone
+  // Absolutely stops trembling, jittering, or "blinking like eyes" when phone is not moving
   useEffect(() => {
     let animId: number;
 
@@ -235,17 +225,16 @@ export const MapView: React.FC<MapViewProps> = ({
       const coneEl = document.querySelector('.user-heading-cone') as HTMLElement | null;
       if (coneEl && isHeadingInitializedRef.current) {
         const target = targetHeadingAngleRef.current;
-        let current = ((currentHeadingAngleRef.current % 360) + 360) % 360;
+        const current = currentHeadingAngleRef.current;
 
-        let diff = target - current;
-        while (diff < -180) diff += 360;
-        while (diff > 180) diff -= 360;
+        // Mathematically exact shortest arc between target and current [-180, +180]
+        const diff = ((target - current) % 360 + 540) % 360 - 180;
 
-        // Filter out micro-jitter from handheld sensor noise when stationary
-        if (Math.abs(diff) > 0.15) {
-          const absDiff = Math.abs(diff);
-          // Dynamic critically-damped lerp factor: snappy during fast turns, silky smooth during subtle rotation
-          const factor = absDiff > 45 ? 0.35 : absDiff > 15 ? 0.24 : 0.16;
+        // Rock-solid stationary deadzone: if change is under 1.2°, DO NOT touch the DOM.
+        // This completely eliminates micro-flutter, sensor shaking, and "blinking eyes".
+        if (Math.abs(diff) >= 1.2) {
+          // Dynamic damping: snappy on deliberate turns, buttery smooth on subtle rotation
+          const factor = Math.abs(diff) > 30 ? 0.28 : 0.16;
           currentHeadingAngleRef.current += diff * factor;
           coneEl.style.transform = `rotate(${currentHeadingAngleRef.current}deg)`;
           coneEl.style.opacity = '1';
@@ -272,21 +261,20 @@ export const MapView: React.FC<MapViewProps> = ({
   }, []);
 
   // Real-time device orientation & compass head-direction listener
+  // Exclusively binds to absolute orientation if available to prevent 60Hz conflicting event toggle
   useEffect(() => {
-    const handleOrientation = (e: DeviceOrientationEvent) => {
+    let hasAbsoluteStream = false;
+
+    const processOrientation = (e: DeviceOrientationEvent) => {
       let heading: number | null = null;
 
       // 1. iOS Safari native compass heading (0 = North)
       if (typeof (e as any).webkitCompassHeading === 'number') {
         heading = (e as any).webkitCompassHeading;
       }
-      // 2. Android Chrome / standard orientation
+      // 2. Android Chrome / standard orientation (0 = North, counter-clockwise alpha -> clockwise compass)
       else if (e.alpha !== null && !isNaN(e.alpha)) {
-        if (e.beta !== null && e.gamma !== null && Math.abs(e.beta) > 8) {
-          heading = computeTiltCompensatedHeading(e.alpha, e.beta, e.gamma);
-        } else {
-          heading = (360 - e.alpha) % 360;
-        }
+        heading = (360 - e.alpha) % 360;
       }
 
       if (heading !== null && !isNaN(heading)) {
@@ -296,20 +284,35 @@ export const MapView: React.FC<MapViewProps> = ({
       }
     };
 
+    const handleAbsolute = (e: DeviceOrientationEvent) => {
+      if (e.alpha !== null && !isNaN(e.alpha)) {
+        hasAbsoluteStream = true;
+        processOrientation(e);
+      }
+    };
+
+    const handleStandard = (e: DeviceOrientationEvent) => {
+      // If Android already emits absolute compass data, completely ignore relative orientation
+      // to avoid alternating 60Hz conflicting angle toggling!
+      if (hasAbsoluteStream) return;
+      processOrientation(e);
+    };
+
     let listeningAbsolute = false;
     if ('ondeviceorientationabsolute' in window) {
-      window.addEventListener('deviceorientationabsolute', handleOrientation as any, { passive: true });
+      window.addEventListener('deviceorientationabsolute', handleAbsolute as any, { passive: true });
       listeningAbsolute = true;
     }
-    window.addEventListener('deviceorientation', handleOrientation, { passive: true });
+    window.addEventListener('deviceorientation', handleStandard, { passive: true });
 
     return () => {
       if (listeningAbsolute) {
-        window.removeEventListener('deviceorientationabsolute', handleOrientation as any);
+        window.removeEventListener('deviceorientationabsolute', handleAbsolute as any);
       }
-      window.removeEventListener('deviceorientation', handleOrientation);
+      window.removeEventListener('deviceorientation', handleStandard);
     };
   }, []);
+
   
   // Default to 100% PURE WATERMARK-FREE DARK MAP (No API keys needed)
   const [mapStyle, setMapStyle] = React.useState<'osm-dark' | 'esri-satellite' | 'osm-standard'>('osm-dark');
@@ -637,13 +640,19 @@ export const MapView: React.FC<MapViewProps> = ({
       userCircleRef.current = null;
     }
 
-    const accuracyRadius = Math.min(Math.max(userLocation.accuracy || 25, 20), 400);
+    const rawAcc = userLocation.accuracy || 25;
+    // Quantize / smooth accuracy radius so the circle doesn't flutter or shrink abruptly on random GPS noise
+    const accuracyRadius = Math.min(Math.max(Math.round(rawAcc / 5) * 5, 20), 250);
 
     // If marker and circle already exist on the current map, smoothly update coordinates without DOM recreation!
     if (userMarkerRef.current && userCircleRef.current) {
       userMarkerRef.current.setLatLng([userLocation.lat, userLocation.lng]);
       userCircleRef.current.setLatLng([userLocation.lat, userLocation.lng]);
-      userCircleRef.current.setRadius(accuracyRadius);
+      // Only adjust radius if difference is noticeable (> 8m) to avoid continuous expansion/shrink jitter
+      const currRadius = userCircleRef.current.getRadius();
+      if (Math.abs(currRadius - accuracyRadius) >= 8) {
+        userCircleRef.current.setRadius(accuracyRadius);
+      }
       if (typeof userLocation.heading === 'number' && !hasHeadingSensorRef.current) {
         applyHeadingRotation(userLocation.heading);
       }
@@ -680,6 +689,7 @@ export const MapView: React.FC<MapViewProps> = ({
           height: 120px;
           transform-origin: 60px 60px;
           transform: rotate(0deg);
+          opacity: 1;
           will-change: transform;
           pointer-events: none;
         ">
