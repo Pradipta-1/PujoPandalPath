@@ -33,7 +33,7 @@ export const DEFAULT_STARTING_LOCATION: UserLocation = {
   lng: 88.3524,
   accuracy: 1000,
   timestamp: Date.now(),
-  addressName: 'Kolkata Central (Syncing...)',
+  addressName: 'Kolkata Central (Esplanade)',
   isRealGps: false,
   isAutoSynced: false
 };
@@ -156,13 +156,15 @@ export function useGeolocation(): UseGeolocationReturn {
           const lng = data[api.lngKey];
           if (typeof lat === 'number' && typeof lng === 'number' && !isNaN(lat) && !isNaN(lng) && lat !== 0) {
             if (isRealGpsAcquiredRef.current) return;
+            // Only accept IP coordinates if they are in the Greater Kolkata / West Bengal area
+            const isNearKolkata = lat >= 21.5 && lat <= 24.5 && lng >= 87.0 && lng <= 89.5;
             const cityName = data[api.cityKey] || 'Kolkata';
             const loc: UserLocation = {
-              lat: Number(lat.toFixed(6)),
-              lng: Number(lng.toFixed(6)),
-              accuracy: 450,
+              lat: isNearKolkata ? Number(lat.toFixed(6)) : 22.5645,
+              lng: isNearKolkata ? Number(lng.toFixed(6)) : 88.3524,
+              accuracy: isNearKolkata ? 450 : 1000,
               timestamp: Date.now(),
-              addressName: `${cityName} (Auto-synced)`,
+              addressName: isNearKolkata ? `${cityName} (Auto-synced)` : 'Kolkata Central (Esplanade)',
               isRealGps: false,
               isAutoSynced: true
             };

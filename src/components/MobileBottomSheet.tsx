@@ -157,14 +157,17 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
 
   // --- Content Pull-to-Close Handlers (at top of inner scroll) ---
   const handleContentTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (contentRef.current && contentRef.current.scrollTop <= 0) {
-      contentTouchStartY.current = e.touches[0].clientY;
-      isPullingContent.current = false;
-    }
+    contentTouchStartY.current = e.touches[0].clientY;
+    isPullingContent.current = false;
   };
 
   const handleContentTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
     if (!isOpen || !contentRef.current) return;
+    if (contentRef.current.scrollTop > 0) {
+      // While scrolled down, reset baseline start position to prevent abrupt jump upon reaching top
+      contentTouchStartY.current = e.touches[0].clientY;
+      return;
+    }
     // Only pull down when at the very top of content scroll
     if (contentRef.current.scrollTop <= 0) {
       const delta = e.touches[0].clientY - contentTouchStartY.current;

@@ -593,15 +593,24 @@ export const MapView: React.FC<MapViewProps> = ({
       if (currMarker) {
         currMarker.setIcon(getPandalIcon(true, !!selectedPandal.has_caution));
         if (selectedPandal.location_verified && selectedPandal.latitude && selectedPandal.longitude) {
-          map.setView([selectedPandal.latitude, selectedPandal.longitude], 15, {
-            animate: true,
-            duration: 0.5
-          });
-          setTimeout(() => {
-            if (currMarker.isPopupOpen && !currMarker.isPopupOpen()) {
-              currMarker.openPopup();
-            }
-          }, 300);
+          const clusterGroup = clusterGroupRef.current;
+          if (clusterGroup && typeof clusterGroup.zoomToShowLayer === 'function') {
+            clusterGroup.zoomToShowLayer(currMarker, () => {
+              if (currMarker.isPopupOpen && !currMarker.isPopupOpen()) {
+                currMarker.openPopup();
+              }
+            });
+          } else {
+            map.setView([selectedPandal.latitude, selectedPandal.longitude], 15, {
+              animate: true,
+              duration: 0.5
+            });
+            setTimeout(() => {
+              if (currMarker.isPopupOpen && !currMarker.isPopupOpen()) {
+                currMarker.openPopup();
+              }
+            }, 300);
+          }
         }
       }
     }

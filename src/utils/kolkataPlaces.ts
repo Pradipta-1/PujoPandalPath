@@ -754,9 +754,16 @@ export async function geocodeKolkataPlaceLive(
   if (!cleanQ || cleanQ.length < 2) return [];
 
   try {
+    const isKalyaniOrNadia = /kalyani|nadia/i.test(cleanQ);
+    const searchQuery = isKalyaniOrNadia
+      ? `${cleanQ}, West Bengal`
+      : cleanQ.toLowerCase().includes('kolkata')
+      ? `${cleanQ}, West Bengal`
+      : `${cleanQ}, Kolkata, West Bengal`;
+
     const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-      cleanQ + ', Kolkata, West Bengal'
-    )}&countrycodes=in&viewbox=88.1,23.1,88.6,22.3&bounded=0&limit=5`;
+      searchQuery
+    )}&countrycodes=in&viewbox=88.0,23.2,88.7,22.2&bounded=0&limit=5`;
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 2800);

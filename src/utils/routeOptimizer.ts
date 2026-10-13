@@ -272,13 +272,14 @@ export function buildGoogleMapsMultiStopUrl(
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pandals[0].name)}`;
   }
 
-  const origin = `${startPoint.lat},${startPoint.lng}`;
-  const destinationPandal = validStops[validStops.length - 1];
+  // Google Maps URL scheme supports a maximum of 8 intermediate waypoints + origin + destination
+  const stopsToInclude = validStops.length > 9 ? validStops.slice(0, 9) : validStops;
+  const destinationPandal = stopsToInclude[stopsToInclude.length - 1];
   const destination = `${destinationPandal.latitude},${destinationPandal.longitude}`;
 
-  // Intermediate waypoints (Google Maps accepts up to 8 waypoints + origin + destination = 10 stops)
-  const waypoints = validStops
+  const waypoints = stopsToInclude
     .slice(0, -1)
+    .slice(0, 8)
     .map((p) => `${p.latitude},${p.longitude}`)
     .join('|');
 

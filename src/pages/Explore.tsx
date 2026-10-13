@@ -114,6 +114,11 @@ export const Explore: React.FC<ExploreProps> = ({
     }
   }, [onSelectPandal]);
 
+  const handleSuggestionSelect = React.useCallback((pandal: Pandal) => {
+    onUpdateFilter('searchQuery', '');
+    handlePandalSelect(pandal);
+  }, [handlePandalSelect, onUpdateFilter]);
+
   return (
     <div className="relative w-screen h-screen overflow-hidden flex flex-col bg-darkBg-950 text-slate-100 font-sans">
       {/* 100% Pure Dark Theme Top Navigation Header */}
@@ -246,7 +251,7 @@ export const Explore: React.FC<ExploreProps> = ({
               value={filters.searchQuery}
               onChange={(val) => onUpdateFilter('searchQuery', val)}
               allPandals={allPandals}
-              onSelectSuggestion={handlePandalSelect}
+              onSelectSuggestion={handleSuggestionSelect}
             />
             <div className="relative z-10">
               <LocationControl
@@ -518,7 +523,7 @@ export const Explore: React.FC<ExploreProps> = ({
               value={filters.searchQuery}
               onChange={(val) => onUpdateFilter('searchQuery', val)}
               allPandals={allPandals}
-              onSelectSuggestion={handlePandalSelect}
+              onSelectSuggestion={handleSuggestionSelect}
             />
             <div className="relative z-10">
               <LocationControl

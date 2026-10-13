@@ -76,10 +76,11 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   };
 
   const handleSelect = (pandal: Pandal) => {
-    onChange(pandal.name);
     setIsOpen(false);
     if (onSelectSuggestion) {
       onSelectSuggestion(pandal);
+    } else {
+      onChange(pandal.name);
     }
   };
 

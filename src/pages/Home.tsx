@@ -353,10 +353,10 @@ export const Home: React.FC<HomeProps> = ({
         <div className="flex items-center justify-between mb-5">
           <div>
             <h3 className="text-xl sm:text-2xl font-bold text-white font-festive">
-              Six Area Divisions
+              6 Kolkata Divisions + Kalyani Hub
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">
-              Curated directly from the official 2026 route planning survey
+              Curated directly from the official 2026 route planning survey (7 total zones)
             </p>
           </div>
 

@@ -102,9 +102,10 @@ export function getGoogleMapsMultiStopUrl(
   const destinationPandal = validPandals[validPandals.length - 1];
   const destination = `${destinationPandal.latitude},${destinationPandal.longitude}`;
 
-  // Intermediate waypoints
+  // Intermediate waypoints (cap to 8 to respect Google Maps URL limits)
   const waypoints = validPandals
     .slice(userLocation ? 0 : 1, -1)
+    .slice(0, 8)
     .map(p => `${p.latitude},${p.longitude}`)
     .join('|');
 

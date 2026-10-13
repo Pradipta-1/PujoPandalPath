@@ -123,14 +123,20 @@ export const ItineraryPlanner: React.FC<ItineraryPlannerProps> = ({
     }
   }, [onReorderItinerary, itinerary, startPoint, routeResult.googleMapsUrl]);
 
-  // Auto-optimize when new pandals are added if autoOptimize is enabled
+  // Auto-optimize when new pandals are added or startPoint changes if autoOptimize is enabled
   const prevItineraryLengthRef = React.useRef(itinerary.length);
+  const prevStartPointRef = React.useRef(`${startPoint.lat},${startPoint.lng}`);
+
   useEffect(() => {
+    const startPointKey = `${startPoint.lat},${startPoint.lng}`;
+    const startChanged = startPointKey !== prevStartPointRef.current;
+    const lengthChanged = itinerary.length !== prevItineraryLengthRef.current;
+
     if (
       autoOptimize &&
       onReorderItinerary &&
       itinerary.length > 1 &&
-      itinerary.length !== prevItineraryLengthRef.current
+      (lengthChanged || startChanged)
     ) {
       const result = optimizePandalRoute(startPoint, itinerary);
       // Only trigger reorder if the optimal order is different from current
@@ -140,6 +146,7 @@ export const ItineraryPlanner: React.FC<ItineraryPlannerProps> = ({
       }
     }
     prevItineraryLengthRef.current = itinerary.length;
+    prevStartPointRef.current = startPointKey;
   }, [itinerary.length, autoOptimize, onReorderItinerary, startPoint]);
 
   // Set custom start point handlers
@@ -594,7 +601,10 @@ export const ItineraryPlanner: React.FC<ItineraryPlannerProps> = ({
                 <div className="flex items-center gap-1 shrink-0">
                   <button
                     disabled={idx === 0}
-                    onClick={() => onMoveUp(idx)}
+                    onClick={() => {
+                      setAutoOptimize(false);
+                      onMoveUp(idx);
+                    }}
                     className="p-1 text-slate-400 hover:text-white disabled:opacity-20 transition-colors"
                     title="Move up"
                   >
@@ -602,7 +612,10 @@ export const ItineraryPlanner: React.FC<ItineraryPlannerProps> = ({
                   </button>
                   <button
                     disabled={idx === itinerary.length - 1}
-                    onClick={() => onMoveDown(idx)}
+                    onClick={() => {
+                      setAutoOptimize(false);
+                      onMoveDown(idx);
+                    }}
                     className="p-1 text-slate-400 hover:text-white disabled:opacity-20 transition-colors"
                     title="Move down"
                   >
