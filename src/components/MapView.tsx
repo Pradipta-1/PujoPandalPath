@@ -170,25 +170,26 @@ export const MapView: React.FC<MapViewProps> = ({
   const hasAutoCenteredUserRef = useRef<boolean>(false);
   const hasCenteredRealGpsRef = useRef<boolean>(false);
   const currentHeadingAngleRef = useRef<number>(0);
+  const targetHeadingAngleRef = useRef<number>(0);
   const hasHeadingSensorRef = useRef<boolean>(false);
+  const isHeadingInitializedRef = useRef<boolean>(false);
 
   // Active Map state ensuring markers and location layers bind cleanly upon initialization & remount
   const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
 
-  // Directly rotates the Google Maps directional heading beam cone with 60fps GPU smoothness (0 React re-renders)
+  // Sets target heading angle for ultra-smooth 60/120fps hardware-accelerated interpolation
   const applyHeadingRotation = (headingDeg: number) => {
-    const coneEl = document.querySelector('.user-heading-cone') as HTMLElement | null;
-    if (!coneEl) return;
-
-    const target = ((headingDeg % 360) + 360) % 360;
-    let diff = target - (currentHeadingAngleRef.current % 360);
-    while (diff < -180) diff += 360;
-    while (diff > 180) diff -= 360;
-
-    currentHeadingAngleRef.current += diff;
-    coneEl.style.transform = `rotate(${currentHeadingAngleRef.current}deg)`;
-    coneEl.style.opacity = '1';
+    targetHeadingAngleRef.current = ((headingDeg % 360) + 360) % 360;
     hasHeadingSensorRef.current = true;
+    if (!isHeadingInitializedRef.current) {
+      currentHeadingAngleRef.current = targetHeadingAngleRef.current;
+      isHeadingInitializedRef.current = true;
+      const coneEl = document.querySelector('.user-heading-cone') as HTMLElement | null;
+      if (coneEl) {
+        coneEl.style.transform = `rotate(${currentHeadingAngleRef.current}deg)`;
+        coneEl.style.opacity = '1';
+      }
+    }
   };
 
   // Triggers compass sensor permissions on iOS Safari 13+ upon user gesture
@@ -205,6 +206,71 @@ export const MapView: React.FC<MapViewProps> = ({
     }
   };
 
+  // 3D Tilt-compensated compass heading calculator for mobile devices held at natural viewing angles
+  const computeTiltCompensatedHeading = (alpha: number, beta: number, gamma: number): number => {
+    const deg2rad = Math.PI / 180;
+    const x = (beta || 0) * deg2rad; // Pitch
+    const y = (gamma || 0) * deg2rad; // Roll
+    const z = (alpha || 0) * deg2rad; // Yaw
+
+    const cX = Math.cos(x);
+    const cZ = Math.cos(z);
+    const sX = Math.sin(x);
+    const sY = Math.sin(y);
+    const sZ = Math.sin(z);
+
+    // Vector pointing out of the TOP of the device in world coordinates
+    const vEast = -cZ * sY * sX - sZ * cX;
+    const vNorth = -sZ * sY * sX + cZ * cX;
+
+    let compass = Math.atan2(vEast, vNorth) * (180 / Math.PI);
+    return ((compass % 360) + 360) % 360;
+  };
+
+  // 60fps/120fps requestAnimationFrame continuous damping loop for zero-lag, jitter-free spotlight rotation
+  useEffect(() => {
+    let animId: number;
+
+    const animateCone = () => {
+      const coneEl = document.querySelector('.user-heading-cone') as HTMLElement | null;
+      if (coneEl && isHeadingInitializedRef.current) {
+        const target = targetHeadingAngleRef.current;
+        let current = ((currentHeadingAngleRef.current % 360) + 360) % 360;
+
+        let diff = target - current;
+        while (diff < -180) diff += 360;
+        while (diff > 180) diff -= 360;
+
+        // Filter out micro-jitter from handheld sensor noise when stationary
+        if (Math.abs(diff) > 0.15) {
+          const absDiff = Math.abs(diff);
+          // Dynamic critically-damped lerp factor: snappy during fast turns, silky smooth during subtle rotation
+          const factor = absDiff > 45 ? 0.35 : absDiff > 15 ? 0.24 : 0.16;
+          currentHeadingAngleRef.current += diff * factor;
+          coneEl.style.transform = `rotate(${currentHeadingAngleRef.current}deg)`;
+          coneEl.style.opacity = '1';
+        }
+      }
+      animId = requestAnimationFrame(animateCone);
+    };
+
+    animId = requestAnimationFrame(animateCone);
+    return () => cancelAnimationFrame(animId);
+  }, []);
+
+  // One-time user gesture trigger for iOS Safari compass permission
+  useEffect(() => {
+    const handleFirstGesture = () => {
+      requestCompassPermission();
+    };
+    window.addEventListener('touchstart', handleFirstGesture, { once: true, passive: true });
+    window.addEventListener('click', handleFirstGesture, { once: true, passive: true });
+    return () => {
+      window.removeEventListener('touchstart', handleFirstGesture);
+      window.removeEventListener('click', handleFirstGesture);
+    };
+  }, []);
+
   // Real-time device orientation & compass head-direction listener
   useEffect(() => {
     const handleOrientation = (e: DeviceOrientationEvent) => {
@@ -214,9 +280,13 @@ export const MapView: React.FC<MapViewProps> = ({
       if (typeof (e as any).webkitCompassHeading === 'number') {
         heading = (e as any).webkitCompassHeading;
       }
-      // 2. Android Chrome / standard absolute orientation
-      else if (e.alpha !== null) {
-        heading = (360 - e.alpha) % 360;
+      // 2. Android Chrome / standard orientation
+      else if (e.alpha !== null && !isNaN(e.alpha)) {
+        if (e.beta !== null && e.gamma !== null && Math.abs(e.beta) > 8) {
+          heading = computeTiltCompensatedHeading(e.alpha, e.beta, e.gamma);
+        } else {
+          heading = (360 - e.alpha) % 360;
+        }
       }
 
       if (heading !== null && !isNaN(heading)) {
@@ -598,10 +668,10 @@ export const MapView: React.FC<MapViewProps> = ({
       });
     }
 
-    // Google Maps Style Directional Heading Beam Cone + Centered Blue Dot
+    // Google Maps Style Directional Heading Spotlight Beam Cone + Centered Blue Dot
     const userHtml = `
       <div class="user-marker-container" style="position: relative; width: 120px; height: 120px; pointer-events: none;">
-        <!-- Directional Flashlight Beam Cone (pointing in the user's facing direction) -->
+        <!-- Directional Spotlight Beam Cone (pointing in the user's facing direction) -->
         <div class="user-heading-cone" style="
           position: absolute;
           top: 0;
@@ -610,26 +680,28 @@ export const MapView: React.FC<MapViewProps> = ({
           height: 120px;
           transform-origin: 60px 60px;
           transform: rotate(0deg);
-          transition: transform 0.15s cubic-bezier(0.2, 0, 0.2, 1);
           will-change: transform;
           pointer-events: none;
         ">
           <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <radialGradient id="userHeadingBeamGrad" cx="60" cy="60" r="56" fx="60" fy="60" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.85" />
-                <stop offset="25%" stop-color="#0ea5e9" stop-opacity="0.55" />
-                <stop offset="60%" stop-color="#0284c7" stop-opacity="0.22" />
-                <stop offset="85%" stop-color="#0284c7" stop-opacity="0.06" />
+                <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.9" />
+                <stop offset="25%" stop-color="#0ea5e9" stop-opacity="0.6" />
+                <stop offset="60%" stop-color="#0284c7" stop-opacity="0.25" />
+                <stop offset="85%" stop-color="#0284c7" stop-opacity="0.08" />
                 <stop offset="100%" stop-color="#0284c7" stop-opacity="0" />
               </radialGradient>
+              <radialGradient id="userHeadingBeamCore" cx="60" cy="60" r="34" fx="60" fy="60" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#bae6fd" stop-opacity="0.8" />
+                <stop offset="45%" stop-color="#38bdf8" stop-opacity="0.4" />
+                <stop offset="100%" stop-color="#38bdf8" stop-opacity="0" />
+              </radialGradient>
             </defs>
-            <!-- 60° Directional Beam Sector -->
-            <path d="M 60 60 L 32 11.5 A 56 56 0 0 1 88 11.5 Z" fill="url(#userHeadingBeamGrad)" filter="drop-shadow(0 0 8px rgba(56, 189, 248, 0.6))" />
-            <!-- Radiant guiding center filament -->
-            <line x1="60" y1="46" x2="60" y2="12" stroke="#bae6fd" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="2 3" opacity="0.9" />
-            <!-- Direction pointer tip arrow -->
-            <polygon points="60,7 57,13 63,13" fill="#38bdf8" opacity="0.95" />
+            <!-- 60° Directional Beam Sector (Pure spotlight beam, no arrows) -->
+            <path d="M 60 60 L 32 11.5 A 56 56 0 0 1 88 11.5 Z" fill="url(#userHeadingBeamGrad)" filter="drop-shadow(0 -2px 10px rgba(56, 189, 248, 0.55))" />
+            <!-- Inner luminous core for realistic flashlight beam depth -->
+            <path d="M 60 60 L 43 30.5 A 34 34 0 0 1 77 30.5 Z" fill="url(#userHeadingBeamCore)" />
           </svg>
         </div>
 
