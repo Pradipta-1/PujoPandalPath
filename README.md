@@ -167,3 +167,5 @@ npm run preview
 ## 📄 License
 
 MIT © 2026 PandalPath Kolkata Team. Sourced from the 2026 Kolkata Durga Puja Planning Route Survey.
+
+<!-- Trigger workflow -->
