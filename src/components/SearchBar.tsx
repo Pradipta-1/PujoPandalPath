@@ -1,15 +1,18 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Search, X, MapPin, ChevronRight, Navigation, Sparkles } from 'lucide-react';
+import { Search, X, MapPin, ChevronRight, Navigation, Sparkles, Mic } from 'lucide-react';
 import type { Pandal } from '../types/pandal';
 import { searchPandals } from '../utils/search';
 import { formatDistance } from '../utils/geo';
 
-interface SearchBarProps {
+export interface SearchBarProps {
   value: string;
   onChange: (value: string) => void;
   allPandals: Pandal[];
   onSelectSuggestion?: (pandal: Pandal) => void;
+  onSubmit?: () => void;
   placeholder?: string;
+  variant?: 'default' | 'omnibox' | 'pill';
+  className?: string;
 }
 
 export const SearchBar: React.FC<SearchBarProps> = ({
@@ -17,20 +20,77 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   onChange,
   allPandals,
   onSelectSuggestion,
-  placeholder = 'Search pandals by name, metro station, or area...'
+  onSubmit,
+  placeholder = 'Search pandals by name, metro station, or area...',
+  variant = 'default',
+  className = ''
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
+  const [isListening, setIsListening] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   // Intelligent ranked & phonetic suggestions
-  const suggestions = useMemo(() => {
+  const allResults = useMemo(() => {
     if (!value.trim() || value.trim().length < 1) return [];
-    const results = searchPandals(allPandals, value);
-    return results.slice(0, 8);
+    return searchPandals(allPandals, value);
   }, [value, allPandals]);
+
+  const suggestions = useMemo(() => {
+    return allResults.slice(0, 12);
+  }, [allResults]);
+
+  // Speech recognition setup
+  useEffect(() => {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      try {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = 'en-IN';
+        recognition.onresult = (event: any) => {
+          const transcript = event.results[0]?.[0]?.transcript;
+          if (transcript) {
+            onChange(transcript);
+            setIsOpen(true);
+          }
+          setIsListening(false);
+        };
+        recognition.onerror = () => setIsListening(false);
+        recognition.onend = () => setIsListening(false);
+        recognitionRef.current = recognition;
+      } catch {
+        recognitionRef.current = null;
+      }
+    }
+  }, [onChange]);
+
+  const toggleListening = () => {
+    if (!recognitionRef.current) {
+      inputRef.current?.focus();
+      return;
+    }
+    if (isListening) {
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        // ignore
+      }
+      setIsListening(false);
+    } else {
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+      } catch {
+        setIsListening(false);
+      }
+    }
+  };
 
   // Reset keyboard selection index when suggestions change
   useEffect(() => {
@@ -48,11 +108,33 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const handleSelect = (pandal: Pandal) => {
+    setIsOpen(false);
+    if (onSelectSuggestion) {
+      onSelectSuggestion(pandal);
+    } else {
+      onChange(pandal.name);
+    }
+  };
+
+  const handleSearchSubmit = () => {
+    if (suggestions.length > 0) {
+      const target = selectedIndex >= 0 ? suggestions[selectedIndex] : suggestions[0];
+      handleSelect(target);
+    } else if (onSubmit) {
+      onSubmit();
+    }
+    setIsOpen(false);
+  };
+
   // Keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (!isOpen || suggestions.length === 0) {
       if (e.key === 'ArrowDown') {
         setIsOpen(true);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        handleSearchSubmit();
       }
       return;
     }
@@ -65,22 +147,10 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       setSelectedIndex((prev) => (prev > 0 ? prev - 1 : suggestions.length - 1));
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      const target = selectedIndex >= 0 ? suggestions[selectedIndex] : suggestions[0];
-      if (target) {
-        handleSelect(target);
-      }
+      handleSearchSubmit();
     } else if (e.key === 'Escape') {
       e.preventDefault();
       setIsOpen(false);
-    }
-  };
-
-  const handleSelect = (pandal: Pandal) => {
-    setIsOpen(false);
-    if (onSelectSuggestion) {
-      onSelectSuggestion(pandal);
-    } else {
-      onChange(pandal.name);
     }
   };
 
@@ -97,7 +167,10 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       const regex = new RegExp(`(${escaped})`, 'gi');
       const parts = name.split(regex);
       return parts.map((part, i) =>
-        regex.test(part) ? (
+        // The capturing group makes odd entries the matched terms. Avoid
+        // RegExp.test here because the global flag makes it stateful across
+        // successive suggestion fragments.
+        i % 2 === 1 ? (
           <span
             key={i}
             className="text-festiveGold-400 font-black underline decoration-festiveGold-400/60"
@@ -116,65 +189,169 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   return (
     <div
       ref={containerRef}
-      className={`relative w-full ${isOpen ? 'z-50' : 'z-20'}`}
+      className={`relative w-full ${isOpen ? 'z-[9999]' : 'z-20'} ${className}`}
       style={{ isolation: 'isolate' }}
     >
-      {/* Search Input Box */}
-      <div className="relative flex items-center">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-festiveGold-400 pointer-events-none" />
-        <input
-          ref={inputRef}
-          type="text"
-          value={value}
-          onChange={(e) => {
-            onChange(e.target.value);
-            setIsOpen(true);
-          }}
-          onFocus={() => setIsOpen(true)}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          style={{
-            backgroundColor: '#070d1e',
-            color: '#ffffff',
-            colorScheme: 'dark'
-          }}
-          className="w-full pl-10 pr-10 py-3 bg-[#070d1e] text-white placeholder:text-slate-400 rounded-xl border border-festiveGold-500/40 focus:border-festiveGold-400 focus:ring-2 focus:ring-festiveGold-500/30 text-sm outline-none transition-all shadow-dark-card"
-        />
-
-        {value && (
-          <button
-            type="button"
-            onClick={() => {
-              onChange('');
-              setIsOpen(false);
-              inputRef.current?.focus();
+      {/* 1. OMNIBOX VARIANT (Home Page Hero - matching user's reference mockup) */}
+      {variant === 'omnibox' && (
+        <div className="relative flex items-center bg-[#0d0d0d]/95 border-2 border-[#e6b85c] rounded-full px-5 py-3 sm:py-3.5 shadow-[0_0_22px_rgba(230,184,92,0.32)] backdrop-blur-xl focus-within:border-festiveGold-300 focus-within:shadow-[0_0_28px_rgba(255,215,0,0.5)] transition-all">
+          <input
+            ref={inputRef}
+            id="search-input"
+            type="text"
+            value={value}
+            onChange={(e) => {
+              onChange(e.target.value);
+              setIsOpen(true);
             }}
-            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-white rounded-full transition-colors"
-            title="Clear search"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        )}
-      </div>
+            onFocus={() => setIsOpen(true)}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            className="w-full bg-transparent text-sm sm:text-base text-white placeholder-slate-400 focus:outline-none selection:bg-festiveRed-600 font-medium"
+          />
+          <div className="flex items-center shrink-0 ml-2">
+            {value ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onChange('');
+                  setIsOpen(false);
+                  inputRef.current?.focus();
+                }}
+                className="p-1 mr-1 text-slate-400 hover:text-white rounded-full transition-colors"
+                title="Clear search"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={toggleListening}
+              className={`p-1 transition-all rounded-full ${
+                isListening
+                  ? 'text-festiveRed-500 animate-pulse bg-festiveRed-500/20'
+                  : 'text-[#f5d08a] hover:text-white'
+              }`}
+              title={isListening ? 'Listening... Speak now' : 'Voice Search'}
+            >
+              <Mic className="w-5 h-5 text-[#f5d08a]" />
+            </button>
 
-      {/* Autocomplete Dropdown - 100% OPAQUE Solid Dark Surface (NO bleed-through) */}
+            {/* Subtle Vertical Divider */}
+            <span className="w-[1px] h-5 bg-slate-600/80 mx-2 sm:mx-3" />
+
+            <button
+              type="button"
+              onClick={handleSearchSubmit}
+              className="p-1 text-[#f5d08a] hover:text-white transition-colors active:scale-95"
+              title="Search"
+            >
+              <Search className="w-5 h-5 text-[#f5d08a]" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 2. PILL VARIANT (Map Floating Search Bar) */}
+      {variant === 'pill' && (
+        <div className="relative flex items-center h-9 px-3 rounded-full bg-[#111111]/95 border-2 border-festiveGold-400 text-xs text-white shadow-[0_0_12px_rgba(255,215,0,0.3)] backdrop-blur-md focus-within:border-festiveGold-300 focus-within:ring-1 focus-within:ring-festiveGold-400/50 w-full transition-all">
+          <Search
+            className="w-3.5 h-3.5 text-festiveGold-400 mr-2 shrink-0 cursor-pointer"
+            onClick={handleSearchSubmit}
+          />
+          <input
+            ref={inputRef}
+            type="text"
+            value={value}
+            onChange={(e) => {
+              onChange(e.target.value);
+              setIsOpen(true);
+            }}
+            onFocus={() => setIsOpen(true)}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            className="w-full bg-transparent text-xs text-white placeholder-slate-400 focus:outline-none selection:bg-festiveRed-600"
+          />
+          {value ? (
+            <button
+              type="button"
+              onClick={() => {
+                onChange('');
+                setIsOpen(false);
+                inputRef.current?.focus();
+              }}
+              className="p-0.5 text-slate-400 hover:text-white rounded-full transition-colors shrink-0 ml-1"
+              title="Clear search"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          ) : null}
+        </div>
+      )}
+
+      {/* 3. DEFAULT VARIANT (Sidebar Directory) */}
+      {variant === 'default' && (
+        <div className="relative flex items-center">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-festiveGold-400 pointer-events-none" />
+          <input
+            ref={inputRef}
+            type="text"
+            value={value}
+            onChange={(e) => {
+              onChange(e.target.value);
+              setIsOpen(true);
+            }}
+            onFocus={() => setIsOpen(true)}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            style={{
+              backgroundColor: '#121212',
+              color: '#ffffff',
+              colorScheme: 'dark'
+            }}
+            className="w-full pl-10 pr-10 py-2.5 bg-[#121212] text-white placeholder:text-slate-400 rounded-xl border-2 border-festiveGold-400 focus:border-festiveGold-300 focus:ring-2 focus:ring-festiveGold-400/40 text-sm outline-none transition-all shadow-[0_0_12px_rgba(255,215,0,0.25)]"
+          />
+
+          {value && (
+            <button
+              type="button"
+              onClick={() => {
+                onChange('');
+                setIsOpen(false);
+                inputRef.current?.focus();
+              }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-white rounded-full transition-colors"
+              title="Clear search"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Autocomplete Dropdown - 100% OPAQUE Solid Obsidian Black Surface */}
       {isOpen && value.trim().length > 0 && (
         <div
           ref={listRef}
           style={{
-            backgroundColor: '#070d1e',
-            opacity: 1
+            backgroundColor: '#101010',
+            opacity: 1,
+            zIndex: 9999
           }}
-          className="absolute top-full left-0 right-0 mt-2 bg-[#070d1e] border-2 border-festiveGold-500/60 rounded-2xl shadow-[0_25px_60px_rgba(0,0,0,0.95)] overflow-hidden z-[9999]"
+          className={`absolute top-full mt-2 bg-[#101010] border-2 border-festiveGold-400 rounded-2xl shadow-[0_25px_60px_rgba(0,0,0,0.98),0_0_20px_rgba(255,215,0,0.35)] overflow-hidden z-[9999] ${
+            variant === 'pill'
+              ? 'left-0 w-[calc(100vw-36px)] sm:w-[380px] max-w-[420px]'
+              : 'left-0 right-0'
+          }`}
         >
           {/* Header Status Bar */}
-          <div className="px-3.5 py-2 bg-[#0b132b] border-b border-slate-800 flex items-center justify-between text-xs text-slate-300">
+          <div className="px-3.5 py-2 bg-[#161616] border-b border-neutral-800 flex items-center justify-between text-xs text-slate-300">
             <span className="flex items-center gap-1.5 font-bold text-festiveGold-400">
               <Sparkles className="w-3.5 h-3.5 text-festiveGold-400" />
               <span>
-                {suggestions.length > 0
-                  ? `Found ${suggestions.length} matching pandals for "${value}"`
-                  : `No exact pandal found for "${value}"`}
+                {allResults.length > 0
+                  ? `Found ${allResults.length} matching ${allResults.length === 1 ? 'pandal' : 'pandals'}`
+                  : `No pandal found for "${value}"`}
               </span>
             </span>
             <span className="text-[10px] text-slate-400 uppercase font-semibold">
@@ -184,22 +361,23 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
           {/* Suggestions List */}
           {suggestions.length > 0 ? (
-            <div className="max-h-72 overflow-y-auto divide-y divide-slate-800/80 p-1.5 custom-scrollbar">
+            <div className="max-h-80 overflow-y-auto divide-y divide-neutral-800/80 p-1.5 custom-scrollbar">
               {suggestions.map((pandal, idx) => {
                 const isSelected = selectedIndex === idx;
                 return (
                   <button
                     key={pandal.id}
                     type="button"
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => handleSelect(pandal)}
                     onMouseEnter={() => setSelectedIndex(idx)}
                     style={{
-                      backgroundColor: isSelected ? '#141f3d' : '#070d1e'
+                      backgroundColor: isSelected ? '#222222' : '#101010'
                     }}
                     className={`w-full text-left px-3 py-2.5 rounded-xl flex items-center justify-between group transition-colors border ${
                       isSelected
-                        ? 'border-festiveGold-500/60 shadow-md'
-                        : 'border-transparent hover:bg-[#101b38]'
+                        ? 'border-festiveGold-400 shadow-[0_0_10px_rgba(255,215,0,0.3)]'
+                        : 'border-transparent hover:bg-[#181818]'
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
@@ -253,13 +431,13 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                 No matching pandals found for &quot;{value}&quot;
               </p>
               <p className="text-[11px] text-slate-400">
-                Try searching by area (e.g. <span className="text-festiveGold-400">North</span>, <span className="text-festiveGold-400">Salt Lake</span>), Metro station, or key name.
+                Try typing part of the name (e.g. <span className="text-festiveGold-400">Santosh</span>, <span className="text-festiveGold-400">Bagbazar</span>), Zone, or Metro station.
               </p>
             </div>
           )}
 
           {/* Footer Shortcuts Navigation Bar */}
-          <div className="px-3.5 py-1.5 bg-[#0b132b] border-t border-slate-800 text-[10px] text-slate-400 flex items-center justify-between">
+          <div className="px-3.5 py-1.5 bg-[#141414] border-t border-neutral-800 text-[10px] text-slate-400 flex items-center justify-between">
             <span>Use ↑↓ to navigate • Enter to select</span>
             <span>Esc to close</span>
           </div>

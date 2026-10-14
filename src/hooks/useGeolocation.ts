@@ -28,18 +28,29 @@ export const POPULAR_STARTING_POINTS = [
   { name: 'Kalyani Railway Station', lat: 22.9750, lng: 88.4344 }
 ];
 
-export const DEFAULT_STARTING_LOCATION: UserLocation = {
-  lat: 22.5645,
-  lng: 88.3524,
-  accuracy: 1000,
-  timestamp: Date.now(),
-  addressName: 'Kolkata Central (Esplanade)',
-  isRealGps: false,
-  isAutoSynced: false
-};
+const ROAD_LOOKUP_MIN_INTERVAL_MS = 15_000;
+const ROAD_LOOKUP_MIN_MOVEMENT_DEGREES = 0.0003; // roughly 30 m in Kolkata
+
+async function resolveRoadName(lat: number, lng: number): Promise<string | null> {
+  try {
+    const params = new URLSearchParams({
+      format: 'jsonv2', lat: String(lat), lon: String(lng), zoom: '18', addressdetails: '1'
+    });
+    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?${params}`);
+    if (!response.ok) return null;
+    const result = await response.json();
+    const address = result?.address;
+    const road = address?.road || address?.pedestrian || address?.footway || address?.residential;
+    const locality = address?.neighbourhood || address?.suburb || address?.city_district;
+    if (road && locality) return `${road}, ${locality}`;
+    return road || locality || result?.display_name?.split(',').slice(0, 2).join(',') || null;
+  } catch {
+    return null;
+  }
+}
 
 export function useGeolocation(): UseGeolocationReturn {
-  // 1. Instantly restore valid cached location if available, or start with default
+  // A cached value is only temporary; a fresh device position supersedes it.
   const [userLocation, setUserLocation] = useState<UserLocation | null>(() => {
     try {
       const saved = localStorage.getItem('pandalpath_user_loc');
@@ -52,16 +63,17 @@ export function useGeolocation(): UseGeolocationReturn {
     } catch {
       // ignore
     }
-    return DEFAULT_STARTING_LOCATION;
+    return null;
   });
 
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [permissionStatus, setPermissionStatus] = useState<UseGeolocationReturn['permissionStatus']>(null);
   const [isLiveTracking, setIsLiveTracking] = useState(false);
   const watchIdRef = useRef<number | null>(null);
   const isRealGpsAcquiredRef = useRef<boolean>(false);
   const lastCoordsRef = useRef<{ lat: number; lng: number; accuracy: number } | null>(null);
+  const lastRoadLookupRef = useRef<{ lat: number; lng: number; timestamp: number } | null>(null);
 
   // Sync to localStorage
   const saveLocation = useCallback((loc: UserLocation | null) => {
@@ -76,6 +88,21 @@ export function useGeolocation(): UseGeolocationReturn {
       // ignore
     }
   }, []);
+
+  const labelRoadForLocation = useCallback(async (loc: UserLocation) => {
+    if (!loc.isRealGps || (loc.accuracy ?? Infinity) > 120) return;
+    const previous = lastRoadLookupRef.current;
+    const movedEnough = !previous ||
+      Math.abs(previous.lat - loc.lat) > ROAD_LOOKUP_MIN_MOVEMENT_DEGREES ||
+      Math.abs(previous.lng - loc.lng) > ROAD_LOOKUP_MIN_MOVEMENT_DEGREES;
+    if (!movedEnough && previous && Date.now() - previous.timestamp < ROAD_LOOKUP_MIN_INTERVAL_MS) return;
+
+    lastRoadLookupRef.current = { lat: loc.lat, lng: loc.lng, timestamp: Date.now() };
+    const roadName = await resolveRoadName(loc.lat, loc.lng);
+    const latest = lastCoordsRef.current;
+    if (!roadName || !latest || Math.abs(latest.lat - loc.lat) > 0.0001 || Math.abs(latest.lng - loc.lng) > 0.0001) return;
+    saveLocation({ ...loc, addressName: roadName });
+  }, [saveLocation]);
 
   // Continuous watchPosition live tracking
   const startLiveTracking = useCallback(() => {
@@ -105,25 +132,27 @@ export function useGeolocation(): UseGeolocationReturn {
           lng: newLng,
           accuracy: newAcc,
           timestamp: position.timestamp,
-          addressName: 'Live Device GPS',
+          addressName: 'Locating nearby road…',
           heading: typeof position.coords.heading === 'number' && !isNaN(position.coords.heading) ? position.coords.heading : null,
           isRealGps: true,
           isAutoSynced: true
         };
         saveLocation(loc);
+        setIsLoading(false);
         setError(null);
         setPermissionStatus('granted');
+        void labelRoadForLocation(loc);
       },
       (err) => {
         console.warn('Live watch position update notice:', err.message);
       },
       {
         enableHighAccuracy: true,
-        maximumAge: 5000,
-        timeout: 10000
+        maximumAge: 0,
+        timeout: 30000
       }
     );
-  }, [saveLocation]);
+  }, [labelRoadForLocation, saveLocation]);
 
   const stopLiveTracking = useCallback(() => {
     if (watchIdRef.current != null) {
@@ -134,8 +163,8 @@ export function useGeolocation(): UseGeolocationReturn {
   }, []);
 
   // Instant Parallel Network/IP Geolocation Fallback (<300ms, 0 permissions required)
-  const fetchIpLocation = useCallback(async () => {
-    if (isRealGpsAcquiredRef.current) return;
+  const fetchIpLocation = useCallback(async (): Promise<UserLocation | null> => {
+    if (isRealGpsAcquiredRef.current) return null;
 
     const apis = [
       { url: 'https://ipwho.is/', latKey: 'latitude', lngKey: 'longitude', cityKey: 'city' },
@@ -144,7 +173,7 @@ export function useGeolocation(): UseGeolocationReturn {
     ];
 
     for (const api of apis) {
-      if (isRealGpsAcquiredRef.current) return;
+      if (isRealGpsAcquiredRef.current) return null;
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 2000);
@@ -155,39 +184,37 @@ export function useGeolocation(): UseGeolocationReturn {
           const lat = data[api.latKey];
           const lng = data[api.lngKey];
           if (typeof lat === 'number' && typeof lng === 'number' && !isNaN(lat) && !isNaN(lng) && lat !== 0) {
-            if (isRealGpsAcquiredRef.current) return;
-            // Only accept IP coordinates if they are in the Greater Kolkata / West Bengal area
+            if (isRealGpsAcquiredRef.current) return null;
+            // IP location is city-level only; never replace it with a made-up
+            // Esplanade location when the network is outside Kolkata.
             const isNearKolkata = lat >= 21.5 && lat <= 24.5 && lng >= 87.0 && lng <= 89.5;
+            if (!isNearKolkata) return null;
             const cityName = data[api.cityKey] || 'Kolkata';
             const loc: UserLocation = {
-              lat: isNearKolkata ? Number(lat.toFixed(6)) : 22.5645,
-              lng: isNearKolkata ? Number(lng.toFixed(6)) : 88.3524,
-              accuracy: isNearKolkata ? 450 : 1000,
+              lat: Number(lat.toFixed(6)),
+              lng: Number(lng.toFixed(6)),
+              accuracy: 450,
               timestamp: Date.now(),
-              addressName: isNearKolkata ? `${cityName} (Auto-synced)` : 'Kolkata Central (Esplanade)',
+              addressName: `${cityName} area (approximate network location)`,
               isRealGps: false,
               isAutoSynced: true
             };
             saveLocation(loc);
             setIsLoading(false);
-            return;
+            return loc;
           }
         }
       } catch {
         // Continue to next endpoint
       }
     }
+    return null;
   }, [saveLocation]);
 
   // Request location with resilient multi-tier fallback: High accuracy GPS, then Wi-Fi, then IP
   const requestLocation = useCallback(async (): Promise<UserLocation | null> => {
     setIsLoading(true);
     setError(null);
-
-    // Trigger fast IP fallback in parallel if real GPS is not yet acquired
-    if (!isRealGpsAcquiredRef.current) {
-      fetchIpLocation();
-    }
 
     if (!navigator.geolocation) {
       setIsLoading(false);
@@ -203,12 +230,17 @@ export function useGeolocation(): UseGeolocationReturn {
         resolved = true;
         isRealGpsAcquiredRef.current = true;
 
+        const newLat = Number(position.coords.latitude.toFixed(6));
+        const newLng = Number(position.coords.longitude.toFixed(6));
+        const newAcc = Math.round(position.coords.accuracy);
+        lastCoordsRef.current = { lat: newLat, lng: newLng, accuracy: newAcc };
+
         const loc: UserLocation = {
-          lat: Number(position.coords.latitude.toFixed(6)),
-          lng: Number(position.coords.longitude.toFixed(6)),
-          accuracy: Math.round(position.coords.accuracy),
+          lat: newLat,
+          lng: newLng,
+          accuracy: newAcc,
           timestamp: position.timestamp,
-          addressName: 'Live Device GPS',
+          addressName: 'Locating nearby road…',
           heading: typeof position.coords.heading === 'number' && !isNaN(position.coords.heading) ? position.coords.heading : null,
           isRealGps: true,
           isAutoSynced: true
@@ -218,13 +250,14 @@ export function useGeolocation(): UseGeolocationReturn {
         setError(null);
         setPermissionStatus('granted');
         startLiveTracking();
+        void labelRoadForLocation(loc);
         resolve(loc);
       };
 
       const onError = (err: GeolocationPositionError) => {
         if (resolved) return;
 
-        // Fast fallback to low accuracy / Wi-Fi positioning (instant on laptops & PCs)
+        // Fallback to low accuracy / Wi-Fi positioning (instant on laptops & PCs)
         navigator.geolocation.getCurrentPosition(
           onSuccess,
           (err2) => {
@@ -236,21 +269,20 @@ export function useGeolocation(): UseGeolocationReturn {
             } else {
               setPermissionStatus('unavailable');
             }
-            fetchIpLocation();
-            resolve(null);
+            void fetchIpLocation().then(resolve);
           },
-          { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
+          { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
         );
       };
 
-      // Try high accuracy with a 4s timeout so laptops/PCs don't hang
+      // 20 second timeout to allow user to respond to permission dialog and GPS chip lock
       navigator.geolocation.getCurrentPosition(onSuccess, onError, {
         enableHighAccuracy: true,
-        timeout: 4000,
-        maximumAge: 15000
+        timeout: 20000,
+        maximumAge: 0
       });
     });
-  }, [saveLocation, startLiveTracking, fetchIpLocation]);
+  }, [saveLocation, startLiveTracking, fetchIpLocation, labelRoadForLocation]);
 
   // Cleanup watcher on unmount
   useEffect(() => {
@@ -261,32 +293,22 @@ export function useGeolocation(): UseGeolocationReturn {
     };
   }, []);
 
-  // Instant Auto-Sync on Website Load (Zero Clicks)
+  // Get a browser GPS fix on load. A network/IP result is used only after GPS
+  // fails, so it can never masquerade as the road where the user is standing.
   useEffect(() => {
-    // 1. Immediately trigger fast parallel IP auto-sync (<300ms)
-    fetchIpLocation();
+    requestLocation();
 
-    // 2. Immediately trigger live device GPS synchronization
-    requestLocation().then((loc) => {
-      if (loc) {
-        startLiveTracking();
-      }
-    });
-
-    // 3. Monitor browser permission state
+    // Monitor a later permission change, e.g. when it is enabled in browser settings.
     if (navigator.permissions && navigator.permissions.query) {
       navigator.permissions
         .query({ name: 'geolocation' })
         .then((result) => {
           setPermissionStatus(result.state as any);
-          if (result.state === 'granted') {
-            startLiveTracking();
-          }
           result.onchange = () => {
             setPermissionStatus(result.state as any);
             if (result.state === 'granted') {
-              requestLocation();
               startLiveTracking();
+              requestLocation();
             }
           };
         })
@@ -294,7 +316,7 @@ export function useGeolocation(): UseGeolocationReturn {
           // ignore
         });
     }
-  }, [requestLocation, startLiveTracking, fetchIpLocation]);
+  }, [requestLocation, startLiveTracking]);
 
   const clearLocation = useCallback(() => {
     stopLiveTracking();

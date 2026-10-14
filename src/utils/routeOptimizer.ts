@@ -275,6 +275,7 @@ export function buildGoogleMapsMultiStopUrl(
   // Google Maps URL scheme supports a maximum of 8 intermediate waypoints + origin + destination
   const stopsToInclude = validStops.length > 9 ? validStops.slice(0, 9) : validStops;
   const destinationPandal = stopsToInclude[stopsToInclude.length - 1];
+  const origin = `${startPoint.lat},${startPoint.lng}`;
   const destination = `${destinationPandal.latitude},${destinationPandal.longitude}`;
 
   const waypoints = stopsToInclude

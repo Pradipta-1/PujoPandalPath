@@ -1,20 +1,29 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { Pandal, UserLocation, AreaDivision, CalculatedRoute } from '../types/pandal';
-import { SearchBar } from '../components/SearchBar';
-import { LocationControl } from '../components/LocationControl';
 import { MapView } from '../components/MapView';
 import { 
-  Compass, 
+  Compass,
   MapPin, 
   Sparkles, 
   BookOpen, 
   ArrowRight,
-  Award,
   Maximize2,
-  Navigation
+  Navigation,
+  Star,
+  ChevronRight,
+  Map
 } from 'lucide-react';
-import { formatDistance } from '../utils/geo';
+import { formatDistance, getMetroDistanceText } from '../utils/geo';
+import { SearchBar } from '../components/SearchBar';
+import { searchPandals } from '../utils/search';
 import rawQualityNotes from '../data/quality_notes.json';
+
+import durgaHeritageImg from '../assets/durga_heritage.jpg';
+import grandThemeImg from '../assets/grand_theme.jpg';
+import modernLightImg from '../assets/modern_light.jpg';
+import northKolkataImg from '../assets/north_kolkata.jpg';
+import southKolkataImg from '../assets/south_kolkata.jpg';
+import saltLakeImg from '../assets/salt_lake.jpg';
 
 interface HomeProps {
   allPandals: Pandal[];
@@ -31,48 +40,71 @@ interface HomeProps {
   activeRoute?: CalculatedRoute | null;
 }
 
-const DIVISIONS_META: { name: AreaDivision; tag: string; description: string; icon: string }[] = [
+interface DivisionMeta {
+  name: AreaDivision;
+  tag: string;
+  subtitle: string;
+  description: string;
+  icon: string;
+  image: string;
+}
+
+const DIVISIONS_META: DivisionMeta[] = [
   {
     name: 'North Kolkata',
     tag: '25 Pujas',
+    subtitle: 'Iconic Rajbari Durga',
     description: 'Heritage aristocracy, Bagbazar, Kumartuli, Shobhabazar Rajbari & Chorebagan.',
-    icon: '🏰'
-  },
-  {
-    name: 'Central Kolkata',
-    tag: '6 Pujas',
-    description: 'College Square lake reflections, Santosh Mitra Square & Lebutala Park.',
-    icon: '✨'
+    icon: '🏰',
+    image: northKolkataImg
   },
   {
     name: 'South Kolkata',
     tag: '23 Pujas',
+    subtitle: 'Theme Pandal',
     description: 'Ekdalia Evergreen, Maddox Square, Hazra Park, Babubagan, Sangha Sree & 95 Pally.',
-    icon: '🌟'
+    icon: '🌟',
+    image: grandThemeImg
   },
   {
     name: 'East Kolkata & Salt Lake',
     tag: '6 Pujas',
+    subtitle: 'Modern Pandal',
     description: 'Salt Lake FD Block, BJ Block, EC Block, Ultadanga Pallyshree & New Town.',
-    icon: '🏛️'
+    icon: '🏛️',
+    image: saltLakeImg
   },
   {
-    name: 'Naktala & Haridevpur',
-    tag: '8 Pujas',
-    description: 'Naktala Udayan Sangha, Haridevpur 41 Pally & Ajeya Sanghati.',
-    icon: '🎨'
+    name: 'Central Kolkata',
+    tag: '6 Pujas',
+    subtitle: 'Heritage Durga',
+    description: 'College Square lake reflections, Santosh Mitra Square & Lebutala Park.',
+    icon: '✨',
+    image: durgaHeritageImg
   },
   {
     name: 'Behala & Barisha',
     tag: '11 Pujas',
+    subtitle: 'Art & Cultural',
     description: 'Behala Natun Dal, Barisha Club, Behala Club, Buroshibtola Janakalyan & Sabarna Roy Choudhury.',
-    icon: '🌺'
+    icon: '🌺',
+    image: southKolkataImg
+  },
+  {
+    name: 'Naktala & Haridevpur',
+    tag: '8 Pujas',
+    subtitle: 'Avant-Garde Theme',
+    description: 'Naktala Udayan Sangha, Haridevpur 41 Pally & Ajeya Sanghati.',
+    icon: '🎨',
+    image: modernLightImg
   },
   {
     name: 'Kalyani, Nadia',
     tag: '4 Mega Pujas',
+    subtitle: 'Grand Architectural',
     description: 'Grand architectural replicas, ITI More Luminous Club, Central Park, A-9 & A-2.',
-    icon: '⚡'
+    icon: '⚡',
+    image: grandThemeImg
   }
 ];
 
@@ -90,14 +122,28 @@ const POPULAR_NAMES = [
   'Hazra Park Durgotsab'
 ];
 
+const PANDAL_RATINGS: Record<string, number> = {
+  'Bagbazar Sarbojanin': 4.9,
+  'College Square': 4.7,
+  'Ekdalia Evergreen': 4.9,
+  'Maddox Square': 4.8,
+  'Suruchi Sangha': 4.8,
+  'Sreebhumi Sporting Club': 4.9,
+  'Naktala Udayan Sangha': 4.7,
+  'Santosh Mitra Square': 4.8,
+  'Kalyani ITI More Luminous Club': 4.9,
+  'Babubagan': 4.7,
+  'Hazra Park Durgotsab': 4.6
+};
+
 export const Home: React.FC<HomeProps> = ({
   allPandals,
   userLocation,
-  isLoadingLocation,
-  locationError,
+  isLoadingLocation: _isLoadingLocation,
+  locationError: _locationError,
   onRequestLocation,
-  onClearLocation,
-  onSetManualLocation,
+  onClearLocation: _onClearLocation,
+  onSetManualLocation: _onSetManualLocation,
   onSelectPandal,
   onSelectDivision,
   onNavigateToExplore,
@@ -113,18 +159,6 @@ export const Home: React.FC<HomeProps> = ({
   const metroCount = new Set(
     allPandals.map((p) => p.nearest_metro).filter((m) => m && m !== 'Location to verify')
   ).size;
-
-  // Dynamic tab for featured section: defaults to 'nearest' when userLocation exists
-  const [featuredTab, setFeaturedTab] = useState<'nearest' | 'popular'>('popular');
-
-  // Auto-switch to 'nearest' whenever userLocation is selected or updated
-  useEffect(() => {
-    if (userLocation) {
-      setFeaturedTab('nearest');
-    } else {
-      setFeaturedTab('popular');
-    }
-  }, [userLocation?.lat, userLocation?.lng]);
 
   const nearestPandals = useMemo(() => {
     if (!userLocation) return [];
@@ -142,6 +176,14 @@ export const Home: React.FC<HomeProps> = ({
     let list = selectedDivisionFilter === 'All'
       ? allPandals
       : allPandals.filter((p) => p.area_division === selectedDivisionFilter);
+    if (searchTerm.trim()) {
+      const q = searchTerm.toLowerCase();
+      list = list.filter(p => 
+        p.name.toLowerCase().includes(q) || 
+        p.area_division.toLowerCase().includes(q) || 
+        (p.nearest_metro && p.nearest_metro.toLowerCase().includes(q))
+      );
+    }
     if (userLocation) {
       list = [...list].sort((a, b) => {
         if (a.distance_from_user_km != null && b.distance_from_user_km != null) {
@@ -153,189 +195,370 @@ export const Home: React.FC<HomeProps> = ({
       });
     }
     return list;
-  }, [allPandals, selectedDivisionFilter, userLocation]);
+  }, [allPandals, selectedDivisionFilter, searchTerm, userLocation]);
+
+  const getPandalImg = (pandal: Pandal) => {
+    if (pandal.area_division === 'North Kolkata' || pandal.name.includes('Bagbazar') || pandal.name.includes('Rajbari')) {
+      return durgaHeritageImg;
+    }
+    if (pandal.area_division === 'East Kolkata & Salt Lake' || pandal.area_division === 'Naktala & Haridevpur') {
+      return modernLightImg;
+    }
+    return grandThemeImg;
+  };
 
   return (
-    <div className="min-h-screen bg-darkBg-900 text-slate-100 flex flex-col dark-alpana-pattern selection:bg-festiveRed-600 selection:text-white">
-      {/* Top Sticky Navigation Bar */}
-      <header
-        style={{ backgroundColor: '#050814' }}
-        className="sticky top-0 z-50 bg-[#050814] text-white border-b border-festiveGold-500/30 px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3 flex items-center justify-between shadow-xl shadow-black/50"
-      >
-        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-festiveRed-600 via-amber-500 to-festiveGold-500 p-0.5 shadow-glow-red flex items-center justify-center shrink-0">
-            <div className="w-full h-full bg-darkBg-950 rounded-[10px] sm:rounded-[14px] flex items-center justify-center">
-              <span className="text-base sm:text-xl">🪔</span>
-            </div>
+    <div className="min-h-screen bg-[#080808] text-slate-100 flex flex-col dark-alpana-pattern selection:bg-festiveRed-600 selection:text-white pb-16 md:pb-0">
+      {/* 1. Header */}
+      <header className="sticky top-0 z-50 bg-gradient-to-r from-[#c4882a] via-[#e8c060] to-[#b8751e] text-[#2c1404] px-3.5 sm:px-6 lg:px-8 py-2.5 sm:py-3 flex items-center justify-between shadow-xl shadow-black/60">
+        {/* Brand / Logo */}
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-[#2c1404] p-0.5 shadow-md flex items-center justify-center shrink-0">
+            <span className="text-base sm:text-xl">🪔</span>
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <h1 className="text-sm sm:text-lg font-black tracking-tight text-white leading-tight font-festive truncate">
-                PandalPath <span className="text-festiveGold-400">2026</span>
-              </h1>
-              <span className="hidden md:inline text-[10px] font-bold bg-festiveGold-500/20 text-festiveGold-300 border border-festiveGold-500/30 px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0">
-                দুর্গোৎসব ২০২৬
-              </span>
-            </div>
-            <p className="text-[10px] sm:text-xs text-slate-400 font-medium tracking-wide truncate">
-              <span className="sm:hidden">6 Zones + Kalyani • {totalPandals} Pandals</span>
-              <span className="hidden sm:inline">Official 6 Divisions + Kalyani Hub • {totalPandals} Listed Pandals</span>
+            <h1 className="text-sm sm:text-lg font-black tracking-tight text-[#2c1404] leading-tight font-festive truncate">
+              PandalPath <span className="text-[#6b2400]">2026</span>
+            </h1>
+            <p className="text-[9px] sm:text-[11px] text-[#552c0a] font-bold tracking-wide truncate hidden xs:block">
+              দুর্গোৎসব ২০২৬ • 83 Pandals
             </p>
           </div>
         </div>
 
-        <button
-          onClick={onNavigateToExplore}
-          className="py-1.5 px-3 sm:py-2 sm:px-4 bg-gradient-to-r from-festiveRed-600 via-festiveRed-700 to-festiveRed-600 hover:from-festiveRed-500 hover:to-festiveRed-600 text-white border border-festiveGold-400/50 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 sm:gap-2 shadow-glow-red transition-all active:scale-95 shrink-0 whitespace-nowrap ml-2"
-        >
-          <Compass className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-festiveGold-300 shrink-0" />
-          <span className="hidden sm:inline">Launch Live Map</span>
-          <span className="sm:hidden">Live Map</span>
-          <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-festiveGold-300 shrink-0" />
-        </button>
+        {/* Right Side: GPS pill + Map button */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Live GPS Pill */}
+          <button
+            onClick={onRequestLocation}
+            className="flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-[#1a1206] text-white border border-[#a87830]/60 transition-all active:scale-95"
+            title="Detect Live GPS Location"
+          >
+            <MapPin className="w-3 h-3 text-[#c49640] shrink-0" />
+            <div className="flex flex-col text-left leading-none">
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-[#c49640]">
+                  LIVE GPS
+                </span>
+                <span className={`w-1.5 h-1.5 rounded-full ${userLocation ? 'bg-emerald-400 animate-pulse' : 'bg-amber-500'}`} />
+              </div>
+            </div>
+          </button>
+
+          {/* Map Button */}
+          <button
+            onClick={onNavigateToExplore}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-[#2c1404] text-[#e8c060] hover:bg-[#3d1e06] transition-all active:scale-95 shadow-md"
+            title="Open Map"
+          >
+            <Map className="w-3.5 h-3.5" />
+            <span className="text-[10px] sm:text-xs font-black tracking-wide hidden sm:inline">MAP</span>
+          </button>
+        </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="relative px-4 sm:px-6 lg:px-12 pt-8 pb-8 sm:pt-12 sm:pb-10 text-center max-w-4xl mx-auto space-y-5">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-festiveGold-500/10 border border-festiveGold-500/30 text-xs font-bold text-festiveGold-400 shadow-sm animate-pulse">
-          <Sparkles className="w-3.5 h-3.5 text-festiveGold-400" />
-          <span>Kolkata Durga Puja 2026 Directory & Supplementary Hubs</span>
-        </div>
+      {/* 2. Hero Section — Full Bleed, No Card Border, Matching Reference Image */}
+      <section className="relative w-full space-y-0">
+        {/* Hero Showcase Banner — Edge-to-Edge, No Padding, No Border */}
+        <div className="relative w-full overflow-hidden bg-[#0a0808] min-h-[200px] sm:min-h-[260px] flex flex-col justify-between">
+          {/* Dark Night City Ambient Background */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_20%_60%,rgba(80,40,5,0.55)_0%,rgba(10,8,8,0.98)_70%)] pointer-events-none" />
 
-        <h2 className="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-tight font-festive">
-          Discover Kolkata, <br />
-          <span className="bg-gradient-to-r from-festiveGold-300 via-amber-200 to-festiveGold-400 bg-clip-text text-transparent drop-shadow-[0_2px_16px_rgba(233,196,106,0.35)]">
-            One Pandal at a Time
-          </span>
-        </h2>
-
-        <p className="text-sm sm:text-base text-slate-300 max-w-2xl mx-auto leading-relaxed">
-          Navigate all {totalPandals} pandals across North, Central, South Kolkata, Salt Lake, Naktala, Behala, and Kalyani. Real transit hubs, walking distance estimates, live GPS matching, and custom routes.
-        </p>
-
-        {/* Search & Location Bar */}
-        <div className="relative z-30 max-w-2xl mx-auto bg-darkBg-800/95 border border-festiveGold-500/40 rounded-2xl p-4 shadow-dark-card space-y-3 backdrop-blur-xl">
-          <SearchBar
-            value={searchTerm}
-            onChange={(val) => {
-              setSearchTerm(val);
-            }}
-            allPandals={allPandals}
-            onSelectSuggestion={(pandal) => {
-              onSelectPandal(pandal);
-              onNavigateToExplore();
-            }}
-            placeholder="Search pandals (e.g., Sreebhumi, Bagbazar, Maddox Square)..."
-          />
-
-          <div className="relative z-10">
-            <LocationControl
-              userLocation={userLocation}
-              isLoading={isLoadingLocation}
-              error={locationError}
-              onRequestLocation={onRequestLocation}
-              onClearLocation={onClearLocation}
-              onSetManualLocation={onSetManualLocation}
+          {/* Right Side — Durga Maa fills fully to edges */}
+          <div className="absolute right-0 top-0 bottom-0 w-[52%] sm:w-[48%] pointer-events-none select-none overflow-hidden">
+            <img
+              src={durgaHeritageImg}
+              alt="Maa Durga"
+              className="h-full w-full object-cover object-center opacity-100"
             />
-          </div>
-        </div>
-
-        {/* Dynamic Statistics with Clean, Bold Modern Typography */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto pt-1">
-          <div className="p-4 rounded-2xl bg-darkBg-800/90 border border-slate-700/60 shadow-dark-card backdrop-blur-md">
-            <span className="text-3xl sm:text-4xl font-black text-festiveGold-400 block font-sans tracking-tight">
-              {totalPandals}
-            </span>
-            <span className="text-xs text-slate-400 font-bold mt-1 block">Total Pandals</span>
+            {/* Left fade — blends into dark background */}
+            <div className="absolute inset-0 bg-gradient-to-r from-[#0a0808] via-[#0a0808]/60 to-transparent" />
+            {/* Bottom fade */}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0a0808]/80 via-transparent to-transparent" />
+            {/* Top fade */}
+            <div className="absolute inset-0 bg-gradient-to-b from-[#0a0808]/30 via-transparent to-transparent" />
           </div>
 
-          <div className="p-4 rounded-2xl bg-darkBg-800/90 border border-slate-700/60 shadow-dark-card backdrop-blur-md">
-            <span className="text-3xl sm:text-4xl font-black text-emerald-400 block font-sans tracking-tight">
-              {verifiedCount}
-            </span>
-            <span className="text-xs text-slate-400 font-bold mt-1 block">GPS Verified Pins</span>
+          {/* Left Side Title */}
+          <div className="relative z-10 px-5 sm:px-8 lg:px-12 pt-7 sm:pt-9 pb-5 sm:pb-8 max-w-[58%] sm:max-w-[55%]">
+            <h2 className="text-[1.65rem] sm:text-[2.6rem] lg:text-[3rem] font-black font-festive text-[#e8c47a] leading-[1.14] tracking-tight italic drop-shadow-[0_2px_18px_rgba(232,196,122,0.3)]">
+              Discover Kolkata,<br />
+              One Pandal at a Time
+            </h2>
           </div>
 
-          <div className="p-4 rounded-2xl bg-darkBg-800/90 border border-slate-700/60 shadow-dark-card backdrop-blur-md">
-            <span className="text-3xl sm:text-4xl font-black text-sky-400 block font-sans tracking-tight">
-              {divisionCount}
-            </span>
-            <span className="text-xs text-slate-400 font-bold mt-1 block">Geographical Areas</span>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-darkBg-800/90 border border-slate-700/60 shadow-dark-card backdrop-blur-md">
-            <span className="text-3xl sm:text-4xl font-black text-festiveRed-500 block font-sans tracking-tight">
-              {metroCount}
-            </span>
-            <span className="text-xs text-slate-400 font-bold mt-1 block">Metro Hubs Linked</span>
+          {/* Full-Width Search Omnibox — flush at the bottom of hero */}
+          <div className="relative z-20 w-full px-4 sm:px-7 lg:px-10 pb-5 sm:pb-7">
+            <SearchBar
+              variant="omnibox"
+              value={searchTerm}
+              onChange={setSearchTerm}
+              allPandals={allPandals}
+              onSelectSuggestion={(pandal) => {
+                onSelectPandal(pandal);
+              }}
+              onSubmit={() => {
+                const results = searchPandals(allPandals, searchTerm);
+                if (results.length > 0) {
+                  onSelectPandal(results[0]);
+                } else {
+                  const el = document.getElementById('home-live-map');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                }
+              }}
+              placeholder="Search Pandals, Zones, Zones, IDs..."
+            />
           </div>
         </div>
       </section>
 
-      {/* Embedded Live Interactive Pandal Map Section on Landing Page */}
-      <section className="px-4 sm:px-6 lg:px-12 py-6 max-w-6xl mx-auto w-full space-y-3.5" id="home-live-map">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-darkBg-800/90 border border-festiveGold-500/30 p-3.5 sm:p-4 rounded-2xl backdrop-blur-md shadow-dark-card">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-festiveRed-600/20 border border-festiveRed-500/40 text-festiveGold-400 flex items-center justify-center shrink-0">
-              <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-festiveGold-400" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                <h3 className="text-sm sm:text-lg font-black text-white font-festive leading-tight">
-                  Interactive Live Pandal Map
-                </h3>
-                <span className="text-[10px] font-sans font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full whitespace-nowrap shrink-0 inline-flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  {verifiedCount} Verified Pins
-                </span>
+      {/* 3. Zone Chips + KPI Stats Section */}
+      <section className="relative px-3.5 sm:px-6 lg:px-10 pt-3 pb-2 max-w-5xl mx-auto w-full space-y-4">
+        {/* Quick Zone Chips Row */}
+        <div className="relative z-10">
+          <div className="flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-none no-scrollbar touch-pan-x">
+            <button
+              onClick={() => {
+                setSelectedDivisionFilter('All');
+                const el = document.getElementById('home-live-map');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className={`shrink-0 px-3 py-1 rounded-full text-xs font-bold transition-all border-2 flex items-center gap-1.5 ${
+                selectedDivisionFilter === 'All'
+                  ? 'bg-gradient-to-r from-festiveGold-400 to-amber-400 text-[#2c1404] border-festiveGold-300 shadow-[0_0_14px_rgba(255,215,0,0.45)] font-black'
+                  : 'bg-[#141414] text-slate-300 border-festiveGold-400/80 hover:border-festiveGold-300 hover:shadow-[0_0_10px_rgba(255,215,0,0.25)]'
+              }`}
+            >
+              <span>🏛️ All</span>
+              <span className="text-[10px] opacity-80">({totalPandals})</span>
+            </button>
+            {DIVISIONS_META.map((div) => {
+              const count = allPandals.filter(p => p.area_division === div.name).length;
+              const isSelected = selectedDivisionFilter === div.name;
+              return (
+                <button
+                  key={div.name}
+                  onClick={() => {
+                    setSelectedDivisionFilter(div.name);
+                    const el = document.getElementById('home-live-map');
+                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className={`shrink-0 px-3 py-1 rounded-full text-xs font-bold transition-all border-2 flex items-center gap-1.5 ${
+                    isSelected
+                      ? 'bg-gradient-to-r from-festiveGold-400 to-amber-400 text-[#2c1404] border-festiveGold-300 shadow-[0_0_14px_rgba(255,215,0,0.45)] font-black'
+                      : 'bg-[#141414] text-slate-300 border-festiveGold-400/80 hover:border-festiveGold-300 hover:shadow-[0_0_10px_rgba(255,215,0,0.25)]'
+                  }`}
+                >
+                  <span>{div.icon}</span>
+                  <span>{div.name.replace(' Kolkata', '').replace(' & Salt Lake', '')}</span>
+                  <span className="text-[10px] opacity-80">({count})</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Four Core KPI Badges — no icons, just numbers */}
+        <div className="grid grid-cols-4 gap-2 sm:gap-3 max-w-3xl mx-auto pt-1">
+          {/* Card 1: 83 Pandals */}
+          <div className="p-2 sm:p-3.5 rounded-2xl bg-[#141414] border border-neutral-800 text-center flex flex-col items-center justify-center">
+            <span className="text-xl sm:text-3xl font-black text-[#c49640] leading-tight">
+              {totalPandals}
+            </span>
+            <span className="text-[10px] sm:text-xs font-bold text-white leading-tight">Pandals</span>
+            <span className="text-[8px] sm:text-[10px] text-slate-500">Live Count</span>
+          </div>
+
+          {/* Card 2: 100% Verified */}
+          <div className="p-2 sm:p-3.5 rounded-2xl bg-[#141414] border border-neutral-800 text-center flex flex-col items-center justify-center">
+            <span className="text-xl sm:text-3xl font-black text-emerald-400 leading-tight">
+              100%
+            </span>
+            <span className="text-[10px] sm:text-xs font-bold text-white leading-tight">Verified</span>
+            <span className="text-[8px] sm:text-[10px] text-slate-500">{verifiedCount} Fixed</span>
+          </div>
+
+          {/* Card 3: 7 Zones */}
+          <div className="p-2 sm:p-3.5 rounded-2xl bg-[#141414] border border-neutral-800 text-center flex flex-col items-center justify-center">
+            <span className="text-xl sm:text-3xl font-black text-sky-400 leading-tight">
+              {divisionCount}
+            </span>
+            <span className="text-[10px] sm:text-xs font-bold text-white leading-tight">Zones</span>
+            <span className="text-[8px] sm:text-[10px] text-slate-500">Explored</span>
+          </div>
+
+          {/* Card 4: Metro Hubs */}
+          <div className="p-2 sm:p-3.5 rounded-2xl bg-[#141414] border border-neutral-800 text-center flex flex-col items-center justify-center">
+            <span className="text-xl sm:text-3xl font-black text-rose-400 leading-tight">
+              {metroCount}
+            </span>
+            <span className="text-[10px] sm:text-xs font-bold text-white leading-tight">Metro Hubs</span>
+            <span className="text-[8px] sm:text-[10px] text-slate-500">Nearest</span>
+          </div>
+        </div>
+      </section>
+
+      {/* 4. "EXPLORE ZONES" Photo Card Carousel matching approved mockup */}
+      <section className="px-4 sm:px-6 lg:px-12 py-5 max-w-6xl mx-auto w-full">
+        <div className="flex items-center justify-between mb-3.5">
+          <h3 className="text-base sm:text-xl font-black text-white font-festive tracking-wide uppercase flex items-center gap-2">
+            <span>Explore Zones</span>
+          </h3>
+          <button
+            onClick={onNavigateToExplore}
+            className="text-xs font-bold text-festiveGold-400 hover:text-festiveGold-300 flex items-center gap-1 transition-colors"
+          >
+            <span>View All Zones</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Horizontal Photo Cards Carousel */}
+        <div className="flex items-center gap-3.5 overflow-x-auto pb-3 scrollbar-none no-scrollbar touch-pan-x -mx-1 px-1">
+          {DIVISIONS_META.map((div) => {
+            const count = allPandals.filter(p => p.area_division === div.name).length;
+            return (
+              <div
+                key={div.name}
+                onClick={() => {
+                  onSelectDivision(div.name);
+                  setSelectedDivisionFilter(div.name);
+                  const el = document.getElementById('home-live-map');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="shrink-0 w-36 sm:w-44 h-52 sm:h-60 rounded-2xl overflow-hidden border border-neutral-800 relative shadow-dark-card group cursor-pointer hover:border-[#a87830]/70 hover:shadow-[0_0_16px_rgba(168,120,48,0.3)] hover:scale-[1.02] transition-all"
+              >
+                {/* Background Photography */}
+                <img
+                  src={div.image}
+                  alt={div.name}
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                />
+                {/* Gradient Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#080808] via-[#080808]/70 to-transparent flex flex-col justify-end p-3 text-left">
+                  <h4 className="text-sm sm:text-base font-black text-white leading-tight font-festive">
+                    {div.name}
+                  </h4>
+                  <p className="text-[11px] font-bold text-festiveGold-400 leading-tight mt-0.5">
+                    {div.subtitle}
+                  </p>
+                  <p className="text-[10px] text-slate-300 font-semibold mt-1">
+                    {count} Pandals
+                  </p>
+                </div>
               </div>
-              <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5 leading-normal">
+            );
+          })}
+        </div>
+      </section>
+
+      {/* 5. "NEAREST PANDALS TO YOU" Cards matching approved mockup */}
+      <section className="px-4 sm:px-6 lg:px-12 py-5 max-w-6xl mx-auto w-full">
+        <div className="flex items-center justify-between mb-3.5">
+          <div>
+            <h3 className="text-base sm:text-xl font-black text-white font-festive uppercase tracking-wide">
+              Nearest Pandals to You
+            </h3>
+            <p className="text-xs text-slate-400">
+              {userLocation ? `Live GPS distance from ${userLocation.addressName || 'Your Location'}` : 'Live pedestrian walking routes'}
+            </p>
+          </div>
+          {userLocation && (
+            <span className="text-[10px] font-extrabold text-sky-300 bg-sky-950/90 border border-sky-500/40 px-2.5 py-1 rounded-full">
+              GPS Active
+            </span>
+          )}
+        </div>
+
+        {/* Horizontal Carousel of Nearest Cards */}
+        <div className="flex items-center gap-3.5 overflow-x-auto pb-3 scrollbar-none no-scrollbar touch-pan-x -mx-1 px-1">
+          {(userLocation && nearestPandals.length > 0 ? nearestPandals : popularPandals).slice(0, 6).map((pandal) => {
+            const rating = PANDAL_RATINGS[pandal.name] || 4.8;
+            return (
+              <div
+                key={pandal.id}
+                className="shrink-0 w-64 sm:w-72 p-3.5 rounded-2xl bg-[#141414] border border-neutral-800 hover:border-neutral-600 flex flex-col justify-between space-y-2.5 transition-colors"
+              >
+                <div className="flex items-start gap-2.5">
+                  <div className="w-12 h-12 rounded-xl overflow-hidden border border-neutral-700 shrink-0 relative bg-darkBg-950 shadow-sm">
+                    <img
+                      src={getPandalImg(pandal)}
+                      alt={pandal.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs sm:text-sm font-black text-white truncate font-festive">
+                        {pandal.name}
+                      </h4>
+                    </div>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                      <span className="text-xs font-bold text-amber-300">{rating}</span>
+                      <span className="text-[10px] text-slate-400">• {pandal.area_division}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Distance & Metro Info */}
+                <div className="text-[11px] text-slate-300 space-y-1 bg-[#0f0f0f] p-2 rounded-xl border border-neutral-800">
+                  <div className="flex items-center justify-between text-festiveGold-300 font-bold">
+                    <span>📍 {pandal.distance_from_user_km != null ? formatDistance(pandal.distance_from_user_km) : pandal.estimated_walking_distance_raw || 'Metro link'}</span>
+                    <span className="text-slate-400">
+                      {pandal.walking_duration_mins != null ? `(${pandal.walking_duration_mins} min walk)` : ''}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-slate-400 truncate">
+                    🚇 Nearest: {pandal.nearest_metro} {getMetroDistanceText(pandal) && `(${getMetroDistanceText(pandal)})`}
+                  </div>
+                </div>
+
+                {/* Action Button matching mockup */}
+                <button
+                  onClick={() => {
+                    onSelectPandal(pandal);
+                    onNavigateToExplore();
+                  }}
+                  className="w-full py-1.5 rounded-xl bg-gradient-to-r from-festiveRed-600 to-rose-800 hover:from-festiveRed-500 hover:to-rose-700 text-white text-xs font-bold transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5"
+                >
+                  <Navigation className="w-3.5 h-3.5 text-festiveGold-300" />
+                  <span>LIVE STATUS & ROUTE</span>
+                  <ArrowRight className="w-3 h-3 text-festiveGold-300" />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* 6. Embedded Live Interactive Pandal Map Section on Landing Page */}
+      <section className="px-4 sm:px-6 lg:px-12 py-5 max-w-6xl mx-auto w-full space-y-3" id="home-live-map">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-[#111111] border border-neutral-800 p-3 sm:p-4 rounded-2xl">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-[#1a0e02] text-[#c49640] flex items-center justify-center shrink-0">
+              <MapPin className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-sm sm:text-base font-black text-white font-festive leading-tight">
+                Interactive Live Pandal Map
+              </h3>
+              <p className="text-[11px] text-slate-500">
                 Click any pandal pin below to view Metro routes, walking distance, and survey notes
               </p>
             </div>
           </div>
-
           <button
             onClick={onNavigateToExplore}
-            className="py-2 px-3 sm:px-3.5 bg-festiveRed-600 hover:bg-festiveRed-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-md transition-colors shrink-0 whitespace-nowrap active:scale-95"
+            className="py-1.5 px-3 bg-festiveRed-600 hover:bg-festiveRed-500 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 shadow-sm self-start sm:self-auto"
           >
+            <span>Open Full Navigator</span>
             <Maximize2 className="w-3.5 h-3.5" />
-            <span>Open Fullscreen Explorer</span>
           </button>
         </div>
 
-        {/* Division Filter Quick Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-          <button
-            onClick={() => setSelectedDivisionFilter('All')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all border ${
-              selectedDivisionFilter === 'All'
-                ? 'bg-festiveRed-600 text-white border-festiveGold-400 shadow-glow-red'
-                : 'bg-darkBg-900 text-slate-300 border-slate-700/60 hover:border-festiveGold-500/40'
-            }`}
-          >
-            All Kolkata ({totalPandals})
-          </button>
-          {DIVISIONS_META.map((div) => {
-            const count = allPandals.filter(p => p.area_division === div.name).length;
-            return (
-              <button
-                key={div.name}
-                onClick={() => setSelectedDivisionFilter(div.name)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all border ${
-                  selectedDivisionFilter === div.name
-                    ? 'bg-festiveRed-600 text-white border-festiveGold-400 shadow-glow-red'
-                    : 'bg-darkBg-900 text-slate-300 border-slate-700/60 hover:border-festiveGold-500/40'
-                }`}
-              >
-                {div.icon} {div.name.replace(' Kolkata', '')} ({count})
-              </button>
-            );
-          })}
-        </div>
-
-        {/* The Live Interactive Map */}
-        <div className="w-full h-[520px] sm:h-[600px] rounded-3xl overflow-hidden border border-festiveGold-500/30 shadow-dark-card relative bg-darkBg-950">
+        {/* The Live Interactive Map — keep gold border here as it's the hero map */}
+        <div className="w-full h-[460px] sm:h-[580px] rounded-3xl overflow-hidden border border-[#a87830]/60 shadow-[0_0_20px_rgba(168,120,48,0.2)] relative bg-[#080808]">
           <MapView
             pandals={displayedPandals}
             selectedPandal={selectedPandal || null}
@@ -348,233 +571,28 @@ export const Home: React.FC<HomeProps> = ({
         </div>
       </section>
 
-      {/* Six Geographical Divisions Cards */}
-      <section className="px-4 sm:px-6 lg:px-12 py-8 max-w-6xl mx-auto w-full">
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <h3 className="text-xl sm:text-2xl font-bold text-white font-festive">
-              6 Kolkata Divisions + Kalyani Hub
-            </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Curated directly from the official 2026 route planning survey (7 total zones)
-            </p>
-          </div>
-
-          <button
-            onClick={onNavigateToExplore}
-            className="text-xs text-festiveGold-400 hover:text-festiveGold-300 font-bold flex items-center gap-1 transition-colors"
-          >
-            <span>Open All on Full Map</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {DIVISIONS_META.map((div) => (
-            <div
-              key={div.name}
-              className="p-5 rounded-2xl bg-darkBg-800/80 hover:bg-darkCard-800 border border-slate-700/60 hover:border-festiveGold-500/50 transition-all duration-300 shadow-dark-card group"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-2xl">{div.icon}</span>
-                <span className="text-xs font-bold text-festiveGold-400 bg-festiveGold-500/10 px-2.5 py-1 rounded-full border border-festiveGold-500/20">
-                  {div.tag}
-                </span>
-              </div>
-              <h4 className="text-base font-bold text-white group-hover:text-festiveGold-400 transition-colors">
-                {div.name}
-              </h4>
-              <p className="text-xs text-slate-400 mt-1.5 leading-relaxed line-clamp-2">
-                {div.description}
-              </p>
-              <div className="mt-4 pt-3 border-t border-slate-700/50 flex items-center justify-between gap-2">
-                <button
-                  onClick={() => {
-                    setSelectedDivisionFilter(div.name);
-                    const el = document.getElementById('home-live-map');
-                    if (el) el.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                  className="text-xs text-festiveGold-400 hover:text-festiveGold-300 font-bold"
-                >
-                  Filter Map Above
-                </button>
-                <button
-                  onClick={() => {
-                    onSelectDivision(div.name);
-                    onNavigateToExplore();
-                  }}
-                  className="text-xs bg-darkBg-900 hover:bg-festiveRed-600 text-slate-200 hover:text-white px-2.5 py-1 rounded-lg border border-slate-700 font-bold flex items-center gap-1 transition-colors"
-                >
-                  <span>Explore Full Map</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Dynamic Nearest to Me / Iconic Pandals Section */}
-      <section className="px-4 sm:px-6 lg:px-12 py-8 max-w-6xl mx-auto w-full">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
-          <div className="flex items-center gap-2.5">
-            {featuredTab === 'nearest' && userLocation ? (
-              <div className="w-8 h-8 rounded-xl bg-sky-600/20 border border-sky-500/40 text-sky-400 flex items-center justify-center shrink-0 shadow-sm">
-                <Navigation className="w-4 h-4 text-sky-400 animate-pulse" />
-              </div>
-            ) : (
-              <div className="w-8 h-8 rounded-xl bg-festiveGold-500/20 border border-festiveGold-500/40 text-festiveGold-400 flex items-center justify-center shrink-0 shadow-sm">
-                <Award className="w-4 h-4 text-festiveGold-400" />
-              </div>
-            )}
-            <div>
-              <h3 className="text-xl sm:text-2xl font-bold text-white font-festive flex items-center gap-2 flex-wrap">
-                <span>
-                  {featuredTab === 'nearest' && userLocation
-                    ? 'Nearest Pandals to You'
-                    : 'Iconic Kolkata Landmarks'}
-                </span>
-                {featuredTab === 'nearest' && userLocation && (
-                  <span className="text-[11px] font-sans font-extrabold text-sky-300 bg-sky-950/80 px-2.5 py-0.5 rounded-full border border-sky-500/40">
-                    📍 {userLocation.addressName || 'Your Location'}
-                  </span>
-                )}
-              </h3>
-              <p className="text-xs text-slate-400">
-                {featuredTab === 'nearest' && userLocation
-                  ? 'Automatically sorted nearest-to-farthest from your current position with pedestrian walking times'
-                  : 'Famous pandals with high crowd volume and award-winning themes across Kolkata'}
-              </p>
-            </div>
-          </div>
-
-          {/* Toggle Pills between Nearest and Iconic */}
-          {userLocation && (
-            <div className="flex items-center bg-darkBg-950 p-1 rounded-xl border border-slate-800 shrink-0 self-start sm:self-auto">
-              <button
-                onClick={() => setFeaturedTab('nearest')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  featuredTab === 'nearest'
-                    ? 'bg-sky-600 text-white shadow-md border border-sky-400'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <Navigation className="w-3.5 h-3.5" />
-                <span>Nearest ({nearestPandals.length})</span>
-              </button>
-              <button
-                onClick={() => setFeaturedTab('popular')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  featuredTab === 'popular'
-                    ? 'bg-festiveGold-500/30 text-festiveGold-300 shadow-md border border-festiveGold-400/50'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <Award className="w-3.5 h-3.5" />
-                <span>Iconic ({popularPandals.length})</span>
-              </button>
-            </div>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {(featuredTab === 'nearest' && userLocation ? nearestPandals : popularPandals).map((pandal, idx) => (
-            <div
-              key={pandal.id}
-              className={`p-4 rounded-2xl bg-darkBg-800/90 hover:bg-darkCard-800 border shadow-dark-card transition-all group ${
-                featuredTab === 'nearest' && idx === 0
-                  ? 'border-sky-400/80 ring-1 ring-sky-400/40'
-                  : 'border-slate-700/60 hover:border-festiveGold-500/50'
-              }`}
-            >
-              <div className="flex items-center justify-between text-xs mb-2">
-                <span className="text-[10px] font-bold text-festiveGold-400 uppercase">
-                  {pandal.area_division}
-                </span>
-                {featuredTab === 'nearest' ? (
-                  <span
-                    className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${
-                      idx === 0
-                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                        : 'bg-sky-500/15 text-sky-300 border-sky-500/30'
-                    }`}
-                  >
-                    #{idx + 1} Nearest
-                  </span>
-                ) : (
-                  <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                    Verified Pin
-                  </span>
-                )}
-              </div>
-              <h4 className="text-sm font-bold text-white group-hover:text-festiveGold-400 transition-colors line-clamp-1">
-                {pandal.name}
-              </h4>
-              <div className="mt-2 text-xs text-slate-400 space-y-1">
-                <div>🚇 Metro: <strong className="text-slate-200">{pandal.nearest_metro}</strong></div>
-                <div>🚶 Metro Walk: <strong className="text-festiveGold-400">{pandal.estimated_walking_distance_raw || 'N/A'}</strong></div>
-                {pandal.distance_from_user_km != null && (
-                  <div className="flex items-center justify-between text-sky-200 bg-gradient-to-r from-blue-950/80 to-slate-900 border border-sky-500/40 px-2.5 py-1.5 rounded-xl text-[11px] font-bold mt-1.5 shadow-sm">
-                    <span className="flex items-center gap-1.5 text-sky-300">
-                      <Navigation className="w-3 h-3 text-sky-400" />
-                      Live Walk: <span className="text-white font-extrabold">{formatDistance(pandal.distance_from_user_km)}</span>
-                    </span>
-                    <span className="text-sky-300 font-extrabold bg-sky-900/60 px-1.5 py-0.5 rounded">
-                      ~{pandal.walking_duration_mins} min
-                    </span>
-                  </div>
-                )}
-              </div>
-              <div className="mt-3 flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    onSelectPandal(pandal);
-                    const el = document.getElementById('home-live-map');
-                    if (el) el.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                  className="flex-1 py-1.5 bg-darkBg-900 hover:bg-festiveRed-600 text-slate-200 hover:text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1 border border-slate-700"
-                >
-                  <MapPin className="w-3.5 h-3.5 text-festiveGold-400" />
-                  View Above
-                </button>
-                <button
-                  onClick={() => {
-                    onSelectPandal(pandal);
-                    onNavigateToExplore();
-                  }}
-                  className="py-1.5 px-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl text-xs font-bold transition-colors border border-slate-700"
-                  title="Open in Full Navigator"
-                >
-                  <Maximize2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Official Survey Quality Notes & Transparency Section */}
-      <section className="px-4 sm:px-6 lg:px-12 py-6 max-w-6xl mx-auto w-full">
-        <div className="p-5 sm:p-6 rounded-2xl bg-darkBg-800/80 border border-festiveGold-500/30 shadow-dark-card">
+      {/* 7. Official Survey Quality Notes & Transparency Section */}
+      <section className="px-4 sm:px-6 lg:px-12 py-5 max-w-6xl mx-auto w-full">
+        <div className="p-4 sm:p-5 rounded-2xl bg-[#111111] border border-neutral-800">
           <div className="flex items-center gap-2 mb-3">
             <BookOpen className="w-4 h-4 text-festiveGold-400" />
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+            <h3 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider">
               Official Route Notes & Transparency Advisories
             </h3>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs text-slate-300 leading-relaxed">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-300 leading-relaxed">
             {rawQualityNotes.map((note) => (
-              <div key={note.id} className="p-3 sm:p-3.5 rounded-xl bg-darkBg-900 border border-slate-700/60 space-y-1.5">
-                <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-1.5 font-bold">
-                  <span className="text-white text-xs sm:text-sm leading-snug break-words flex-1">
+              <div key={note.id} className="p-3 rounded-xl bg-[#181818] border border-neutral-800 space-y-1">
+                <div className="flex items-center justify-between gap-1.5 font-bold">
+                  <span className="text-white text-xs leading-snug truncate flex-1">
                     {note.title}
                   </span>
-                  <span className="text-[10px] text-festiveGold-400 bg-festiveGold-500/10 px-2.5 py-0.5 rounded-full border border-festiveGold-500/20 whitespace-nowrap self-start xs:self-auto shrink-0 inline-flex items-center">
+                  <span className="text-[10px] text-festiveGold-400 bg-festiveGold-500/10 px-2 py-0.5 rounded-full border border-festiveGold-400/80 whitespace-nowrap shrink-0">
                     {note.status}
                   </span>
                 </div>
-                <p className="text-slate-400 text-[11px] sm:text-xs leading-relaxed">{note.content}</p>
-                <span className="text-[10px] text-slate-500 block pt-0.5">
+                <p className="text-slate-400 text-[11px] leading-relaxed line-clamp-2">{note.content}</p>
+                <span className="text-[10px] text-slate-500 block">
                   {note.division} • Page {note.page}
                 </span>
               </div>
@@ -583,8 +601,8 @@ export const Home: React.FC<HomeProps> = ({
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="mt-auto border-t border-slate-800 bg-darkBg-950 px-4 sm:px-8 py-5 text-center text-xs text-slate-500">
+      {/* 8. Footer */}
+      <footer className="mt-auto border-t border-neutral-800 bg-[#080808] px-4 sm:px-8 py-5 text-center text-xs text-slate-500 mb-14 md:mb-0">
         <p className="text-sm text-festiveGold-400 font-bold mb-0.5 font-festive">
           PandalPath Kolkata 2026 • সম্পূর্ণ বাংলা দুর্গোৎসব ম্যাপ
         </p>
@@ -592,6 +610,43 @@ export const Home: React.FC<HomeProps> = ({
           Data sourced faithfully from <code className="text-white font-semibold">Kolkata_Durga_Puja_2026_Routes.pdf</code>. 100% runs on your local device and browser.
         </p>
       </footer>
+
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#090909]/97 border-t border-neutral-800 backdrop-blur-xl px-4 py-2 flex items-center justify-around shadow-[0_-4px_20px_rgba(0,0,0,0.7)] pb-[max(0.6rem,env(safe-area-inset-bottom))]">
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="flex flex-col items-center gap-0.5 text-[#c49640] font-bold text-[10px] min-w-[44px] min-h-[44px] justify-center active:scale-95 transition-transform"
+        >
+          <span className="text-base leading-none">🪔</span>
+          <span>Home</span>
+        </button>
+
+        <button
+          onClick={onNavigateToExplore}
+          className="flex flex-col items-center gap-0.5 text-slate-400 hover:text-[#c49640] font-semibold text-[10px] transition-colors min-w-[44px] min-h-[44px] justify-center active:scale-95"
+        >
+          <Compass className="w-4 h-4 text-[#c49640]" />
+          <span>Live Map</span>
+        </button>
+
+        <button
+          onClick={() => {
+            const el = document.getElementById('home-live-map');
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+          }}
+          className="flex flex-col items-center gap-0.5 text-slate-400 hover:text-sky-300 font-semibold text-[10px] transition-colors min-w-[44px] min-h-[44px] justify-center active:scale-95"
+        >
+          <MapPin className="w-4 h-4 text-sky-400" />
+          <span>Explore</span>
+        </button>
+
+        <button
+          onClick={onNavigateToExplore}
+          className="flex flex-col items-center gap-0.5 text-slate-400 hover:text-[#c49640] font-semibold text-[10px] transition-colors min-w-[44px] min-h-[44px] justify-center active:scale-95"
+        >
+          <Sparkles className="w-4 h-4 text-[#c49640]" />
+          <span>Plan</span>
+        </button>
+      </nav>
     </div>
   );
 };

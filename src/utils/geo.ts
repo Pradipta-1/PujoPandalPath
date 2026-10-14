@@ -55,6 +55,23 @@ export function formatDistance(distanceKm: number | null | undefined): string {
 }
 
 /**
+ * Returns formatted distance from nearest metro station to the pandal
+ */
+export function getMetroDistanceText(pandal: Pandal): string {
+  if (pandal.estimated_walking_distance_raw) {
+    const match = pandal.estimated_walking_distance_raw.match(/~?[\d.]+\s*km/i);
+    if (match) return match[0];
+    if (pandal.estimated_walking_distance_raw !== 'Check') {
+      const clean = pandal.estimated_walking_distance_raw.replace(/^Check\s*\(/i, '').replace(/\)$/, '');
+      if (clean) return clean;
+    }
+  }
+  if (pandal.metro_nearest_dist) return pandal.metro_nearest_dist;
+  if (pandal.estimated_walking_distance_km != null) return `~${pandal.estimated_walking_distance_km} km`;
+  return '';
+}
+
+/**
  * Generate Google Maps navigation URL
  * Prefers exact coords if verified, else uses encoded search query
  */

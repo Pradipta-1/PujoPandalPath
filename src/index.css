@@ -13,7 +13,7 @@
 
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    background-color: #070d1e;
+    background-color: #080808;
     color: #f8fafc;
     color-scheme: dark;
     overscroll-behavior-y: none;
@@ -22,7 +22,7 @@
 
   input, select, textarea {
     color-scheme: dark;
-    background-color: #0b132b;
+    background-color: #121212;
     color: #f8fafc;
   }
 }
@@ -33,7 +33,7 @@
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #070d1e;
+  background: #080808;
 }
 ::-webkit-scrollbar-thumb {
   background: #d90429;
@@ -48,17 +48,31 @@
   width: 100% !important;
   height: 100% !important;
   min-height: 380px !important;
-  background: #090e1f !important;
+  background: #050505 !important;
   font-family: inherit;
   z-index: 10 !important;
   isolation: isolate !important;
 }
 
-/* Watermark-Free Pure Dark Theme for OpenStreetMap Tiles */
+/* Warm obsidian treatment: keeps the street map legible while carrying the
+   website's charcoal, antique-gold and subtle maroon palette into the tiles. */
 .dark-map-tiles .leaflet-tile {
-  filter: brightness(0.68) invert(1) contrast(1.35) hue-rotate(200deg) saturate(0.35) !important;
+  filter: invert(0.86) grayscale(0.42) sepia(0.30) saturate(0.78) hue-rotate(332deg) brightness(0.78) contrast(1.20) !important;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
+}
+
+.dark-map-tiles {
+  background: #070504;
+}
+
+.dark-map-tiles::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 350;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(190, 132, 48, 0.015), rgba(94, 12, 24, 0.035));
 }
 
 .leaflet-tile-container {
@@ -81,7 +95,7 @@
 .festive-pin-active {
   transform: scale(1.28) translateY(-6px);
   z-index: 1100 !important;
-  filter: drop-shadow(0 0 12px rgba(233, 196, 106, 0.9));
+  filter: drop-shadow(0 0 14px rgba(255, 215, 0, 0.95));
 }
 
 .user-location-pulse {
@@ -118,56 +132,66 @@
   }
 }
 
-/* Leaflet Custom Popup in Pure Dark Theme */
+/* Leaflet Custom Popup in Pure Obsidian Dark Theme */
 .leaflet-popup-content-wrapper {
-  background: #0b132b !important;
+  background: #101010 !important;
   color: #f8fafc !important;
-  border: 1px solid rgba(233, 196, 106, 0.4) !important;
+  border: 1.5px solid #cda250 !important;
   border-radius: 16px !important;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.8) !important;
+  box-shadow: 0 0 20px rgba(205, 162, 80, 0.28), 0 16px 40px rgba(0, 0, 0, 0.95) !important;
   padding: 4px;
 }
 .leaflet-popup-tip {
-  background: #0b132b !important;
-  border: 1px solid rgba(233, 196, 106, 0.4) !important;
+  background: #101010 !important;
+  border: 1.5px solid #cda250 !important;
+}
+.leaflet-popup-close-button {
+  color: #cda250 !important;
+  font-size: 18px !important;
+  padding: 4px !important;
+  top: 6px !important;
+  right: 6px !important;
+}
+.leaflet-popup-close-button:hover {
+  color: #ffffff !important;
 }
 
 /* Dark Alpana Background Pattern */
 .dark-alpana-pattern {
-  background-color: #070d1e;
+  background-color: #080808;
   background-image: 
-    radial-gradient(rgba(233, 196, 106, 0.1) 1px, transparent 1px),
-    radial-gradient(rgba(217, 4, 41, 0.12) 1px, #070d1e 1px);
+    radial-gradient(rgba(205, 162, 80, 0.08) 1px, transparent 1px),
+    radial-gradient(rgba(217, 4, 41, 0.1) 1px, #080808 1px);
   background-size: 32px 32px;
   background-position: 0 0, 16px 16px;
 }
 
 /* Custom Marker Cluster Styling in Dark Theme */
 .marker-cluster-small {
-  background-color: rgba(233, 196, 106, 0.4) !important;
+  background-color: rgba(205, 162, 80, 0.25) !important;
 }
 .marker-cluster-small div {
-  background-color: #0b132b !important;
-  color: #fde047 !important;
+  background-color: #111111 !important;
+  color: #cda250 !important;
   font-weight: 800 !important;
-  border: 2px solid #e9c46a !important;
+  border: 1.5px solid #cda250 !important;
   box-shadow: 0 4px 10px rgba(0,0,0,0.5);
 }
 .marker-cluster-medium {
-  background-color: rgba(244, 162, 97, 0.45) !important;
+  background-color: rgba(245, 158, 11, 0.4) !important;
 }
 .marker-cluster-medium div {
-  background-color: #0b132b !important;
-  color: #f4a261 !important;
+  background-color: #111111 !important;
+  color: #fbbf24 !important;
   font-weight: 800 !important;
-  border: 2px solid #f4a261 !important;
+  border: 2px solid #fbbf24 !important;
   box-shadow: 0 4px 10px rgba(0,0,0,0.5);
 }
 .marker-cluster-large {
   background-color: rgba(217, 4, 41, 0.5) !important;
 }
 .marker-cluster-large div {
-  background-color: #0b132b !important;
+  background-color: #111111 !important;
   color: #ff6b6b !important;
   font-weight: 800 !important;
   border: 2px solid #d90429 !important;

@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet.markercluster';
 import type { Pandal, UserLocation, CalculatedRoute } from '../types/pandal';
-import { Compass, Crosshair, ZoomIn, ZoomOut, Layers } from 'lucide-react';
+import { Compass, Crosshair, ZoomIn, ZoomOut } from 'lucide-react';
+import { getMetroDistanceText } from '../utils/geo';
 
 interface MapViewProps {
   pandals: Pandal[];
@@ -16,30 +17,35 @@ interface MapViewProps {
 
 // Cached DivIcons to eliminate constant DOM allocation & memory churn
 function createPandalIcon(isSelected: boolean, hasCaution: boolean): L.DivIcon {
-  const pinColor = isSelected ? '#d90429' : '#0b132b';
-  const strokeColor = isSelected ? '#ffd166' : '#e9c46a';
+  const glowShadow = isSelected
+    ? '0 0 16px rgba(217, 4, 41, 0.95), 0 0 6px rgba(253, 224, 71, 0.8)'
+    : '0 0 12px rgba(245, 158, 11, 0.7), 0 2px 8px rgba(0,0,0,0.8)';
+  const pinBg = isSelected ? '#9b0517' : '#080e22';
+  const pinStroke = isSelected ? '#fde047' : '#f59e0b';
 
   const html = `
     <div class="festive-pin ${isSelected ? 'festive-pin-active' : ''}" style="cursor: pointer; will-change: transform;">
       <div style="
         position: relative;
-        width: 38px;
-        height: 48px;
+        width: 40px;
+        height: 50px;
         display: flex;
         align-items: center;
         justify-content: center;
+        filter: drop-shadow(${glowShadow});
       ">
-        <svg viewBox="0 0 38 48" width="38" height="48" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M19 0C8.5 0 0 8.5 0 19C0 31.5 19 48 19 48C19 48 38 31.5 38 19C38 8.5 29.5 0 19 0Z" 
-            fill="${pinColor}" 
-            stroke="${strokeColor}" 
+        <svg viewBox="0 0 40 50" width="40" height="50" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M20 0C9 0 0 9 0 20C0 33 20 50 20 50C20 50 40 33 40 20C40 9 31 0 20 0Z" 
+            fill="${pinBg}" 
+            stroke="${pinStroke}" 
             stroke-width="2.5" 
-            filter="drop-shadow(0 4px 8px rgba(0,0,0,0.7))"
           />
-          <circle cx="19" cy="18" r="13" fill="${isSelected ? '#8b0517' : '#141f3d'}" />
-          <!-- Durga Trishul Motif in Radiant Gold -->
-          <path d="M19 8V26M13 13Q19 19 19 19Q19 19 25 13" stroke="#f59e0b" stroke-width="2.2" stroke-linecap="round"/>
-          <circle cx="19" cy="10" r="1.8" fill="#ffd166"/>
+          <circle cx="20" cy="19" r="14" fill="${isSelected ? '#70030f' : '#101a38'}" stroke="${isSelected ? '#ffc300' : '#d97706'}" stroke-width="1.2" />
+          <!-- Radiant Golden Durga Trishul Motif -->
+          <path d="M20 9V29M14 14Q20 21 20 21Q20 21 26 14" stroke="${isSelected ? '#ffffff' : '#ffd166'}" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="20" cy="10" r="2" fill="${isSelected ? '#ffc300' : '#ffffff'}"/>
+          <circle cx="14" cy="14" r="1.4" fill="#ffd166"/>
+          <circle cx="26" cy="14" r="1.4" fill="#ffd166"/>
         </svg>
         ${
           hasCaution
@@ -53,9 +59,9 @@ function createPandalIcon(isSelected: boolean, hasCaution: boolean): L.DivIcon {
   return L.divIcon({
     html,
     className: 'custom-pandal-icon',
-    iconSize: [38, 48],
-    iconAnchor: [19, 48],
-    popupAnchor: [0, -48]
+    iconSize: [40, 50],
+    iconAnchor: [20, 50],
+    popupAnchor: [0, -50]
   });
 }
 
@@ -75,66 +81,73 @@ function generatePopupContent(pandal: Pandal, userLocation: UserLocation | null)
     ? `https://www.google.com/maps/dir/?api=1&origin=${userLocation.lat},${userLocation.lng}&destination=${pandal.latitude},${pandal.longitude}&travelmode=walking`
     : (pandal.google_maps_search_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pandal.name + ' Durga Puja Kolkata')}`);
 
+  const metroDist = getMetroDistanceText(pandal);
+
   return `
-    <div style="min-width: 230px; max-width: 280px; padding: 4px; background: #0b132b; color: #f8fafc; border-radius: 12px;">
+    <div style="min-width: 240px; max-width: 290px; padding: 6px; background: #101010; color: #f8fafc; border-radius: 12px; font-family: inherit;">
       <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px;">
-        <span style="font-size: 11px; font-weight: 700; color: #e9c46a; text-transform: uppercase; letter-spacing: 0.5px;">
+        <span style="font-size: 11px; font-weight: 800; color: #ffd700; text-transform: uppercase; letter-spacing: 0.5px;">
           ${pandal.area_division}
         </span>
         <span style="font-size: 10px; background: rgba(16, 185, 129, 0.2); color: #34d399; padding: 2px 7px; border-radius: 999px; font-weight: 700; border: 1px solid rgba(52, 211, 153, 0.3);">
           ✓ Verified Pin
         </span>
       </div>
-      <h4 style="margin: 0 0 6px 0; font-size: 15px; font-weight: 800; color: #ffffff; line-height: 1.3;">
+      <h4 style="margin: 0 0 6px 0; font-size: 15px; font-weight: 900; color: #ffffff; line-height: 1.3;">
         ${pandal.name}
       </h4>
       <div style="font-size: 12px; color: #cbd5e1; margin-bottom: 8px; line-height: 1.4;">
-        <div style="margin-bottom: 3px;">🚇 Metro: <strong style="color: #f1f5f9;">${pandal.nearest_metro}</strong></div>
-        <div>🚶 Metro Walk: <strong style="color: #fde047;">${pandal.estimated_walking_distance_raw || 'N/A'}</strong></div>
+        <div style="margin-bottom: 3px;">
+          🚇 Metro: <strong style="color: #f1f5f9;">${pandal.nearest_metro}</strong>
+          ${metroDist ? `<span style="color: #ffd700; font-weight: 800; margin-left: 4px;">(${metroDist})</span>` : ''}
+        </div>
+        <div>🚶 Metro Walk: <strong style="color: #ffd700;">${pandal.estimated_walking_distance_raw || 'N/A'}</strong></div>
         ${pandal.distance_from_user_km != null ? `
-        <div style="margin-top: 6px; padding: 5px 8px; background: rgba(14, 165, 233, 0.18); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; color: #e0f2fe;">
-          <span style="font-weight: 800; color: #38bdf8; font-size: 11px; display: flex; align-items: center; gap: 4px;">
-            📍 Live GPS Walk: <span style="color: #ffffff; font-size: 12px;">${pandal.distance_from_user_km < 1 ? Math.round(pandal.distance_from_user_km * 1000) + ' m' : pandal.distance_from_user_km.toFixed(2) + ' km'}</span>
+        <div style="margin-top: 6px; padding: 6px 8px; background: rgba(255, 215, 0, 0.08); border: 1.5px solid rgba(255, 215, 0, 0.35); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; color: #fef08a;">
+          <span style="font-weight: 800; color: #ffd700; font-size: 11px; display: flex; align-items: center; gap: 4px;">
+            📍 Live Walk: <span style="color: #ffffff; font-size: 12px;">${pandal.distance_from_user_km < 1 ? Math.round(pandal.distance_from_user_km * 1000) + ' m' : pandal.distance_from_user_km.toFixed(2) + ' km'}</span>
           </span>
-          <span style="color: #bae6fd; font-size: 11px; font-weight: 700; background: rgba(2, 132, 199, 0.4); padding: 1px 6px; border-radius: 4px;">
+          <span style="color: #ffd700; font-size: 11px; font-weight: 800; background: rgba(255, 215, 0, 0.15); padding: 1px 6px; border-radius: 4px; border: 1px solid rgba(255, 215, 0, 0.3);">
             ~${pandal.walking_duration_mins || Math.max(1, Math.round(pandal.distance_from_user_km * 15))} min
           </span>
         </div>` : ''}
       </div>
       ${
         pandal.notes
-          ? `<div style="font-size: 11px; color: #94a3b8; font-style: italic; margin-bottom: 8px; border-left: 2px solid #e9c46a; padding-left: 6px;">
+          ? `<div style="font-size: 11px; color: #cbd5e1; font-style: italic; margin-bottom: 8px; border-left: 3px solid #ffd700; padding-left: 6px; background: rgba(255,215,0,0.05); padding-top: 2px; padding-bottom: 2px; border-radius: 0 4px 4px 0;">
               ${pandal.notes}
             </div>`
           : ''
       }
-      <div style="display: flex; gap: 6px;">
+      <div style="display: flex; gap: 6px; margin-top: 8px;">
         <button id="popup-select-${pandal.id}" style="
           flex: 1;
           background: linear-gradient(135deg, #d90429, #9b111e);
           color: #ffffff;
-          border: 1px solid rgba(233, 196, 106, 0.4);
-          padding: 6px 10px;
-          border-radius: 8px;
+          border: 1.5px solid #ffd700;
+          padding: 7px 10px;
+          border-radius: 10px;
           font-size: 11px;
-          font-weight: 700;
+          font-weight: 800;
           cursor: pointer;
+          box-shadow: 0 2px 8px rgba(217, 4, 41, 0.4);
         ">
           Select Pandal
         </button>
         <a href="${gmapsWalkUrl}" target="_blank" rel="noopener noreferrer" style="
-          background: rgba(14, 165, 233, 0.25);
-          color: #7dd3fc;
-          border: 1px solid rgba(56, 189, 248, 0.4);
+          background: #1e1e1e;
+          color: #ffd700;
+          border: 1.5px solid #ffd700;
           text-decoration: none;
-          padding: 6px 10px;
-          border-radius: 8px;
+          padding: 7px 10px;
+          border-radius: 10px;
           font-size: 11px;
-          font-weight: 700;
+          font-weight: 800;
           display: flex;
           align-items: center;
           justify-content: center;
           gap: 3px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.5);
         ">
           🚶 Walk ↗
         </a>
@@ -315,7 +328,7 @@ export const MapView: React.FC<MapViewProps> = ({
 
   
   // Default to 100% PURE WATERMARK-FREE DARK MAP (No API keys needed)
-  const [mapStyle, setMapStyle] = React.useState<'osm-dark' | 'esri-satellite' | 'osm-standard'>('osm-dark');
+  const [mapStyle] = React.useState<'osm-dark' | 'esri-satellite' | 'osm-standard'>('osm-dark');
 
   // Initialize Map with bulletproof container validation
   useEffect(() => {
@@ -560,6 +573,13 @@ export const MapView: React.FC<MapViewProps> = ({
 
         markersMapRef.current.set(pandal.id, marker);
         toAdd.push(marker);
+      } else {
+        // Popup directions depend on the current location. Refresh existing
+        // marker content instead of leaving a previously generated route link.
+        marker.bindPopup(() => generatePopupContent(pandal, userLocationRef.current), {
+          closeButton: true,
+          className: 'dark-festive-popup'
+        });
       }
     });
 
@@ -570,7 +590,7 @@ export const MapView: React.FC<MapViewProps> = ({
         toAdd.forEach((m) => clusterGroup.addLayer(m));
       }
     }
-  }, [mapInstance, pandals]);
+  }, [mapInstance, pandals, userLocation]);
 
   // Instantaneous Selected Pandal Pan & Icon Switch (0ms overhead)
   useEffect(() => {
@@ -765,16 +785,16 @@ export const MapView: React.FC<MapViewProps> = ({
       const headingDeg = Math.round(((currentHeadingAngleRef.current % 360) + 360) % 360);
       const cardinal = getCardinalDirection(headingDeg);
       return `
-        <div style="padding: 6px; font-size: 12px; color: #ffffff; background: #0b132b; border-radius: 8px;">
-          <strong style="color: #38bdf8; display: block; margin-bottom: 3px;">📍 Your Live GPS Location</strong>
-          <div style="color: #e2e8f0; font-size: 11px;">
+        <div style="padding: 10px 12px; font-size: 12px; color: #ffffff; background: #101010; border-radius: 12px; border: 2px solid #ffd700; box-shadow: 0 0 15px rgba(255,215,0,0.35);">
+          <strong style="color: #ffd700; display: block; margin-bottom: 4px; font-size: 13px; font-weight: 900;">📍 Your Live GPS Location</strong>
+          <div style="color: #e2e8f0; font-size: 11px; font-weight: 600;">
             ${userLocationRef.current?.addressName || 'Position acquired'}
           </div>
-          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; padding: 4px 8px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 6px;">
-            <span style="color: #7dd3fc; font-weight: 700; font-size: 11px;">🧭 Facing Direction:</span>
-            <span style="color: #ffffff; font-weight: 800; font-size: 11px;">${headingDeg}° (${cardinal})</span>
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; padding: 6px 10px; background: rgba(255, 215, 0, 0.12); border: 1.5px solid rgba(255, 215, 0, 0.4); border-radius: 8px;">
+            <span style="color: #ffd700; font-weight: 800; font-size: 11px;">🧭 Facing Direction:</span>
+            <span style="color: #ffffff; font-weight: 900; font-size: 11px;">${headingDeg}° (${cardinal})</span>
           </div>
-          <div style="color: #94a3b8; font-size: 10px; margin-top: 4px;">
+          <div style="color: #94a3b8; font-size: 10px; margin-top: 6px;">
             Accuracy: ±${Math.round(userLocationRef.current?.accuracy || 15)}m • Google Maps Direction Beam
           </div>
         </div>
@@ -875,22 +895,6 @@ export const MapView: React.FC<MapViewProps> = ({
           className="p-2.5 bg-darkBg-800/90 hover:bg-darkBg-700 text-sky-400 border border-sky-500/30 rounded-xl shadow-dark-card backdrop-blur-md transition-all active:scale-95 flex items-center justify-center"
         >
           <Crosshair className="w-5 h-5" />
-        </button>
-
-        <button
-          onClick={() => {
-            const next =
-              mapStyle === 'osm-dark'
-                ? 'esri-satellite'
-                : mapStyle === 'esri-satellite'
-                ? 'osm-standard'
-                : 'osm-dark';
-            setMapStyle(next);
-          }}
-          title={`Switch Map Style (Current: ${mapStyle === 'osm-dark' ? 'Midnight Dark' : mapStyle === 'esri-satellite' ? 'Satellite View' : 'Standard Street View'})`}
-          className="p-2.5 bg-darkBg-800/90 hover:bg-darkBg-700 text-slate-200 border border-slate-700 rounded-xl shadow-dark-card backdrop-blur-md transition-all active:scale-95 flex items-center justify-center"
-        >
-          <Layers className="w-5 h-5" />
         </button>
 
         <div className="flex flex-col bg-darkBg-800/90 border border-slate-700 rounded-xl shadow-dark-card backdrop-blur-md overflow-hidden">

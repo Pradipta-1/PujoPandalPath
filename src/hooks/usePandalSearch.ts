@@ -141,7 +141,7 @@ export function usePandalSearch(userLocation?: UserLocation | null) {
     });
 
     return result;
-  }, [pandalsWithDistance, filters, userLat, userLng]);
+  }, [pandalsWithDistance, filters, userLocation]);
 
   const resetFilters = useCallback(() => {
     setFilters(INITIAL_FILTERS);

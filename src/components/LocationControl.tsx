@@ -42,54 +42,62 @@ export const LocationControl: React.FC<LocationControlProps> = ({
     <div className="relative">
       {/* Current Location State Bar */}
       {userLocation ? (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-3 py-2.5 rounded-xl bg-blue-950/70 border border-blue-500/30 text-xs text-sky-200 shadow-md backdrop-blur-md">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="relative flex h-2.5 w-2.5 shrink-0">
-              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${userLocation.isRealGps ? 'bg-emerald-400' : 'bg-sky-400'} opacity-75`}></span>
-              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${userLocation.isRealGps ? 'bg-emerald-500' : 'bg-sky-500'}`}></span>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-3 py-2.5 rounded-2xl bg-gradient-to-r from-[#181818] via-[#141414] to-[#101010] border-2 border-festiveGold-400/80 text-xs text-festiveGold-100 shadow-[0_0_16px_rgba(255,215,0,0.22)] backdrop-blur-md">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="relative flex h-3 w-3 shrink-0">
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${userLocation.isRealGps ? 'bg-emerald-400' : 'bg-festiveGold-400'} opacity-75`}></span>
+              <span className={`relative inline-flex rounded-full h-3 w-3 ${userLocation.isRealGps ? 'bg-emerald-500' : 'bg-festiveGold-400'}`}></span>
             </span>
             <div className="min-w-0 truncate">
               <div className="flex items-center gap-1.5 truncate">
-                <span className="truncate font-bold text-white block">
+                <span className="truncate font-black text-white block">
                   {userLocation.addressName || (userLocation.isRealGps ? 'Live Device GPS Active' : 'Auto-synced Location')}
                 </span>
-                {userLocation.isAutoSynced && (
-                  <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-400/30 shrink-0">
-                    Auto-Synced
+                {userLocation.isRealGps ? (
+                  <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-festiveGold-500/20 text-festiveGold-300 border border-festiveGold-400/50 shrink-0">
+                    Road-level GPS
                   </span>
-                )}
-                {userLocation.isRealGps && (
-                  <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 shrink-0">
-                    GPS Fix
+                ) : userLocation.isAutoSynced ? (
+                  <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/50 shrink-0">
+                    Approximate network area
                   </span>
-                )}
+                ) : null}
+                {userLocation.isRealGps ? (
+                  <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 shrink-0">
+                    Live GPS Fix
+                  </span>
+                ) : isLoading ? (
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40 shrink-0 animate-pulse">
+                    Refining GPS...
+                  </span>
+                ) : null}
               </div>
-              <span className="text-[10px] text-sky-300 block">
-                {userLocation.lat.toFixed(4)}°N, {userLocation.lng.toFixed(4)}°E (±{userLocation.accuracy || 15}m)
+              <span className="text-[10px] text-slate-300 block">
+                {userLocation.lat.toFixed(4)}°N, {userLocation.lng.toFixed(4)}°E {userLocation.accuracy ? `(±${userLocation.accuracy}m)` : ''}
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-blue-900/40">
+          <div className="flex items-center gap-1.5 shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-festiveGold-400/30">
             <button
               onClick={() => onRequestLocation()}
               disabled={isLoading}
               title="Resynchronize Device GPS"
-              className="px-2.5 py-1 bg-sky-600/30 hover:bg-sky-600/50 text-sky-200 hover:text-white rounded-lg text-[11px] font-bold border border-sky-400/40 transition-colors flex items-center gap-1"
+              className="px-2.5 py-1 bg-gradient-to-r from-festiveGold-500/20 to-amber-500/20 hover:from-festiveGold-500/35 hover:to-amber-500/35 text-festiveGold-300 hover:text-white rounded-lg text-[11px] font-bold border border-festiveGold-400/60 transition-colors flex items-center gap-1 active:scale-95 shadow-sm"
             >
-              <Navigation className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
-              <span>{isLoading ? 'Syncing...' : 'Resync GPS'}</span>
+              <Navigation className={`w-3 h-3 text-festiveGold-400 ${isLoading ? 'animate-spin' : ''}`} />
+              <span>{isLoading ? 'Auto-Syncing...' : 'Resync GPS'}</span>
             </button>
             <button
               onClick={() => setShowHubPicker(!showHubPicker)}
-              className="text-[11px] font-bold underline text-sky-300 hover:text-white transition-colors px-1"
+              className="text-[11px] font-bold text-festiveGold-400 hover:text-white transition-colors px-1 underline"
             >
               Change Hub
             </button>
             <button
               onClick={onClearLocation}
               title="Clear Location"
-              className="p-1 text-sky-300 hover:text-white rounded-md hover:bg-blue-900/50 transition-colors"
+              className="p-1 text-festiveGold-400/80 hover:text-white rounded-md hover:bg-[#202020] transition-colors"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -100,16 +108,16 @@ export const LocationControl: React.FC<LocationControlProps> = ({
           <button
             onClick={handleRequestClick}
             disabled={isLoading}
-            className="flex-1 py-2.5 px-3 bg-gradient-to-r from-festiveRed-600 to-festiveRed-700 hover:from-festiveRed-500 hover:to-festiveRed-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-[0.98] disabled:opacity-50"
+            className="flex-1 py-2.5 px-3 bg-gradient-to-r from-festiveRed-600 to-rose-700 hover:from-festiveRed-500 hover:to-rose-600 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-[0_0_14px_rgba(217,4,41,0.5)] border-2 border-festiveGold-300 transition-all active:scale-[0.98] disabled:opacity-50"
           >
             {isLoading ? (
               <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
-                <span>Synchronizing Device GPS...</span>
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-festiveGold-300" />
+                <span>Auto-Syncing Device GPS...</span>
               </>
             ) : (
               <>
-                <Navigation className="w-3.5 h-3.5 text-white" />
+                <Navigation className="w-3.5 h-3.5 text-festiveGold-300" />
                 <span>Sync My Device GPS</span>
               </>
             )}
@@ -118,16 +126,16 @@ export const LocationControl: React.FC<LocationControlProps> = ({
           <button
             onClick={() => setShowHubPicker(!showHubPicker)}
             title="Pick a Kolkata transit hub"
-            className="py-2.5 px-3 bg-darkBg-800 hover:bg-darkCard-800 text-festiveGold-400 font-bold rounded-xl border border-festiveGold-500/30 text-xs transition-colors flex items-center gap-1"
+            className="py-2.5 px-3 bg-[#161616] hover:bg-[#222222] text-festiveGold-300 font-bold rounded-xl border-2 border-festiveGold-400/80 text-xs transition-colors flex items-center gap-1 shadow-sm active:scale-95"
           >
-            <Compass className="w-3.5 h-3.5" />
+            <Compass className="w-3.5 h-3.5 text-festiveGold-400" />
             <span>Select Hub</span>
           </button>
 
           <button
             onClick={() => setShowExplanation(!showExplanation)}
             title="Privacy Info"
-            className="p-2.5 bg-darkBg-800 hover:bg-darkCard-800 text-slate-400 hover:text-white rounded-xl border border-slate-700 transition-colors"
+            className="p-2.5 bg-[#161616] hover:bg-[#222222] text-festiveGold-400/80 hover:text-white rounded-xl border-2 border-festiveGold-400/50 transition-colors shadow-sm"
           >
             <HelpCircle className="w-3.5 h-3.5" />
           </button>
@@ -136,29 +144,29 @@ export const LocationControl: React.FC<LocationControlProps> = ({
 
       {/* Permission Explanation */}
       {showExplanation && (
-        <div className="mt-2 p-3 bg-darkBg-800 border border-festiveGold-500/40 rounded-xl text-xs text-slate-200 shadow-dark-card">
+        <div className="mt-2 p-3 bg-gradient-to-b from-[#181818] to-[#101010] border-2 border-festiveGold-400/80 rounded-xl text-xs text-slate-200 shadow-[0_0_15px_rgba(255,215,0,0.2)]">
           <div className="flex items-center justify-between mb-1">
             <span className="font-bold text-festiveGold-400 flex items-center gap-1.5">
               <Navigation className="w-3.5 h-3.5" />
-              Geolocation Privacy
+              Instant Geolocation Auto-Sync
             </span>
-            <button onClick={() => setShowExplanation(false)} className="text-slate-400 hover:text-white">
+            <button onClick={() => setShowExplanation(false)} className="text-festiveGold-400 hover:text-white">
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
           <p className="text-slate-300 leading-relaxed text-[11px]">
-            Your location is processed entirely inside your browser on this local device to calculate walking routes to pandals. It is never saved to a remote server.
+            With your browser permission, the map uses your device GPS for live routes and distances. After a GPS fix, the coordinate is sent to OpenStreetMap only to display the nearby road name; it is not stored on our server.
           </p>
         </div>
       )}
 
       {/* Error / Denial Warning Banner */}
       {error && !userLocation && (
-        <div className="mt-2 p-2.5 bg-red-950/70 border border-red-500/30 rounded-xl text-xs text-red-200 flex items-start gap-2">
+        <div className="mt-2 p-2.5 bg-[#180a0a] border-2 border-red-500/60 rounded-xl text-xs text-red-200 flex items-start gap-2 shadow-sm">
           <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
           <div className="flex-1">
-            <p className="font-bold">{error}</p>
-            <p className="text-[11px] text-red-300 mt-0.5">
+            <p className="font-bold text-red-300">{error}</p>
+            <p className="text-[11px] text-red-400/90 mt-0.5">
               You can tap "Select Hub" to pick any major Kolkata metro station or junction instead.
             </p>
           </div>
@@ -167,12 +175,12 @@ export const LocationControl: React.FC<LocationControlProps> = ({
 
       {/* Starting Hub Picker Popover */}
       {showHubPicker && (
-        <div className="mt-2 p-3 bg-darkBg-800 border border-festiveGold-500/40 rounded-xl shadow-dark-card z-30">
+        <div className="mt-2 p-3 bg-[#141414] border-2 border-festiveGold-400 rounded-2xl shadow-[0_0_20px_rgba(255,215,0,0.3)] z-30">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-white uppercase tracking-wider">
+            <span className="text-xs font-black text-white uppercase tracking-wider font-festive">
               Select Kolkata Starting Hub
             </span>
-            <button onClick={() => setShowHubPicker(false)} className="text-slate-400 hover:text-white">
+            <button onClick={() => setShowHubPicker(false)} className="text-festiveGold-400 hover:text-white">
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -184,7 +192,7 @@ export const LocationControl: React.FC<LocationControlProps> = ({
                   onSetManualLocation(hub.lat, hub.lng, hub.name);
                   setShowHubPicker(false);
                 }}
-                className="text-left px-2.5 py-1.5 rounded-lg bg-darkBg-900/90 hover:bg-festiveRed-600/20 text-slate-200 hover:text-white border border-slate-700/60 hover:border-festiveGold-500/50 text-xs transition-colors flex items-center gap-1.5 font-medium"
+                className="text-left px-2.5 py-1.5 rounded-lg bg-[#1a1a1a] hover:bg-festiveGold-500/20 text-slate-200 hover:text-white border border-festiveGold-400/50 hover:border-festiveGold-400 text-xs transition-colors flex items-center gap-1.5 font-medium"
               >
                 <MapPin className="w-3 h-3 text-festiveGold-400 shrink-0" />
                 <span className="truncate">{hub.name}</span>

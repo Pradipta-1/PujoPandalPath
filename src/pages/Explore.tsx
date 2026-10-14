@@ -19,6 +19,7 @@ import {
   Info,
   Navigation
 } from 'lucide-react';
+import { searchPandals } from '../utils/search';
 import rawQualityNotes from '../data/quality_notes.json';
 
 interface ExploreProps {
@@ -121,51 +122,36 @@ export const Explore: React.FC<ExploreProps> = ({
 
   return (
     <div className="relative w-screen h-screen overflow-hidden flex flex-col bg-darkBg-950 text-slate-100 font-sans">
-      {/* 100% Pure Dark Theme Top Navigation Header */}
-      <header
-        style={{ backgroundColor: '#040711' }}
-        className="shrink-0 z-[1500] bg-[#040711] text-white border-b border-festiveGold-500/30 px-3 sm:px-6 py-2.5 flex items-center justify-between shadow-dark-card"
-      >
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <button
-            onClick={onNavigateHome}
-            className="py-1 px-2.5 sm:py-1.5 sm:px-3 bg-darkBg-800 hover:bg-darkCard-800 text-festiveGold-400 border border-festiveGold-500/40 rounded-xl transition-all flex items-center gap-1.5 text-xs font-bold active:scale-95 shadow-md shrink-0"
-            title="Return to Landing Page"
-          >
-            <HomeIcon className="w-3.5 h-3.5 text-festiveGold-400 shrink-0" />
-            <span className="hidden sm:inline">Landing Page</span>
-            <span className="sm:hidden font-semibold">Home</span>
-          </button>
-
-          <div className="h-4 sm:h-5 w-px bg-slate-800 shrink-0" />
-
-          <div className="min-w-0 flex items-center gap-1.5">
-            <span className="text-sm shrink-0">🪔</span>
-            <div>
-              <h1 className="text-xs sm:text-base font-black text-white flex items-center gap-1 font-festive leading-tight truncate">
-                <span>PandalPath</span>
-                <span className="text-festiveGold-400 font-festive">2026</span>
-              </h1>
-              <p className="text-[10px] text-slate-400 hidden md:block">
-                Live Pedestrian Navigation • 6 Official Divisions + Kalyani Hub
-              </p>
-            </div>
+      {/* Header — matches Home page darker gold style */}
+      <header className="shrink-0 z-[1500] bg-gradient-to-r from-[#c4882a] via-[#e8c060] to-[#b8751e] text-[#2c1404] px-3.5 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between shadow-lg shadow-black/60">
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#2c1404] p-0.5 shadow-md flex items-center justify-center shrink-0">
+            <span className="text-base sm:text-lg">🪔</span>
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-sm sm:text-base font-black text-[#2c1404] flex items-center gap-1 font-festive leading-tight truncate">
+              <span>PandalPath</span>
+              <span className="text-[#8b3d00] font-festive">2026</span>
+            </h1>
+            <p className="text-[10px] sm:text-xs text-[#522909] font-bold hidden md:block">
+              Live Pedestrian Navigation • 6 Official Divisions + Kalyani Hub
+            </p>
           </div>
         </div>
 
         {/* Mobile Header Right Badge (Perfect Visual Balance) */}
         <div className="flex items-center md:hidden shrink-0">
-          <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-darkBg-800/90 border border-festiveGold-500/30 text-xs font-bold shadow-sm">
-            <span className="text-[10px] text-slate-400 font-semibold">Pujas:</span>
+          <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-[#2c1404] text-festiveGold-300 text-xs font-bold shadow-sm">
+            <span className="text-[10px] text-slate-300 font-semibold">Pujas:</span>
             <span className="text-festiveGold-400 font-extrabold">{filteredCount}</span>
-            <span className="text-slate-500 font-normal">/</span>
-            <span className="text-slate-400 font-medium">{totalCount}</span>
+            <span className="text-slate-400 font-normal">/</span>
+            <span className="text-slate-300 font-medium">{totalCount}</span>
           </div>
         </div>
 
         {/* Desktop Quick Tab Controls */}
         <div className="hidden md:flex items-center gap-2">
-          <div className="flex items-center bg-darkBg-900 p-1 rounded-xl border border-slate-800">
+          <div className="flex items-center bg-[#2c1404] p-1 rounded-xl border-2 border-festiveGold-400 shadow-[0_0_12px_rgba(255,215,0,0.3)]">
             <button
               onClick={() => {
                 setSidebarTab('directory');
@@ -173,8 +159,8 @@ export const Explore: React.FC<ExploreProps> = ({
               }}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                 sidebarTab === 'directory' && sidebarOpen
-                  ? 'bg-festiveRed-600 text-white shadow-glow-red'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-festiveRed-600 text-white shadow-sm'
+                  : 'text-amber-200 hover:text-white'
               }`}
             >
               <List className="w-3.5 h-3.5" />
@@ -188,8 +174,8 @@ export const Explore: React.FC<ExploreProps> = ({
               }}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                 sidebarTab === 'filters' && sidebarOpen
-                  ? 'bg-festiveRed-600 text-white shadow-glow-red'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-festiveRed-600 text-white shadow-sm'
+                  : 'text-amber-200 hover:text-white'
               }`}
             >
               <Filter className="w-3.5 h-3.5" />
@@ -203,8 +189,8 @@ export const Explore: React.FC<ExploreProps> = ({
               }}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                 sidebarTab === 'itinerary' && sidebarOpen
-                  ? 'bg-festiveGold-500 text-darkBg-950 font-black shadow-glow-gold'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-gradient-to-r from-amber-500 to-festiveGold-400 text-black font-black shadow-sm'
+                  : 'text-amber-200 hover:text-white'
               }`}
             >
               <Calendar className="w-3.5 h-3.5" />
@@ -218,8 +204,8 @@ export const Explore: React.FC<ExploreProps> = ({
               }}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                 sidebarTab === 'advisories' && sidebarOpen
-                  ? 'bg-festiveRed-600 text-white shadow-glow-red'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-festiveRed-600 text-white shadow-sm'
+                  : 'text-amber-200 hover:text-white'
               }`}
             >
               <Info className="w-3.5 h-3.5" />
@@ -229,7 +215,7 @@ export const Explore: React.FC<ExploreProps> = ({
 
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 bg-darkBg-900 hover:bg-darkCard-800 text-slate-300 hover:text-white rounded-xl border border-slate-800 transition-colors"
+            className="p-2 bg-[#2c1404] hover:bg-[#1a0c02] text-amber-200 hover:text-white rounded-xl border border-festiveGold-400 transition-colors shadow-sm"
             title={sidebarOpen ? 'Collapse Directory' : 'Open Directory'}
           >
             {sidebarOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
@@ -461,28 +447,56 @@ export const Explore: React.FC<ExploreProps> = ({
 
         {/* 100% Full-Screen Leaflet Map */}
         <main className="flex-1 relative w-full h-full min-h-[380px] bg-darkBg-950">
-          {/* Floating Filter Option: Just below the Home button in Picture 2 */}
-          <div className="absolute top-3 left-3 z-[1000]">
+          {/* Floating Action Bar matching approved mobile mockup */}
+          <div className="absolute top-3 left-3 right-3 z-[1000] flex items-center gap-2 pointer-events-auto max-w-md">
+            {/* Home Pill */}
+            <button
+              onClick={onNavigateHome}
+              className="h-9 px-3 rounded-full bg-[#111111]/95 hover:bg-[#1a1a1a] text-[#c49640] border border-neutral-700 shadow-lg flex items-center justify-center text-xs font-bold backdrop-blur-md active:scale-95 shrink-0"
+              title="Return to Home"
+            >
+              <HomeIcon className="w-4 h-4 text-festiveGold-400" />
+            </button>
+
+            {/* Quick Search Pill with Autocomplete Suggestions */}
+            <div className="flex-1 relative min-w-0">
+              <SearchBar
+                variant="pill"
+                value={filters.searchQuery}
+                onChange={(val) => onUpdateFilter('searchQuery', val)}
+                allPandals={allPandals}
+                onSelectSuggestion={handleSuggestionSelect}
+                onSubmit={() => {
+                  const results = searchPandals(allPandals, filters.searchQuery);
+                  if (results.length > 0) {
+                    handleSuggestionSelect(results[0]);
+                  }
+                }}
+                placeholder="Search pandals..."
+              />
+            </div>
+
+            {/* Filter Pill */}
             <button
               onClick={() => setIsFilterModalOpen(!isFilterModalOpen)}
-              className={`py-1.5 px-3 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-xl border-2 active:scale-95 ${
+              className={`h-9 px-3.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shadow-lg border backdrop-blur-md active:scale-95 shrink-0 ${
                 hasActiveFilters
-                  ? 'bg-gradient-to-r from-festiveRed-600 to-rose-700 text-white border-festiveGold-300 shadow-[0_0_15px_rgba(217,4,41,0.6)]'
-                  : 'bg-[#080f24] hover:bg-[#0e193c] text-festiveGold-300 border-festiveGold-500/50 hover:border-festiveGold-400 shadow-dark-card'
+                  ? 'bg-festiveRed-600 text-white border-festiveGold-300/60 shadow-[0_0_12px_rgba(217,4,41,0.5)]'
+                  : 'bg-[#111111]/95 text-[#c49640] border-neutral-700 hover:border-neutral-500'
               }`}
               title="Filter Pandals"
             >
               <Filter className="w-3.5 h-3.5 text-festiveGold-400" />
               <span>Filter</span>
               {hasActiveFilters && (
-                <span className="w-2 h-2 rounded-full bg-festiveGold-400 animate-pulse" />
+                <span className="w-1.5 h-1.5 rounded-full bg-festiveGold-400 animate-pulse" />
               )}
             </button>
           </div>
 
-          {/* Floating Filter Panel right below the Home button */}
+          {/* Floating Filter Panel right below the bar */}
           {isFilterModalOpen && (
-            <div className="absolute top-12 left-3 z-[1200] w-[calc(100vw-24px)] max-w-sm sm:max-w-md max-h-[80vh] overflow-y-auto animate-fadeIn">
+            <div className="absolute top-14 left-3 z-[1200] w-[calc(100vw-24px)] max-w-sm sm:max-w-md max-h-[80vh] overflow-y-auto animate-fadeIn">
               <FilterPanel
                 filters={filters}
                 allMetroStations={allMetroStations}
@@ -591,8 +605,8 @@ export const Explore: React.FC<ExploreProps> = ({
                       onClick={() => onUpdateFilter('division', div)}
                       className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all border flex items-center gap-1.5 active:scale-95 ${
                         isSelected
-                          ? 'bg-gradient-to-r from-festiveRed-600 to-rose-700 text-white border-festiveGold-400 shadow-[0_0_10px_rgba(217,4,41,0.5)] font-black'
-                          : 'bg-[#0b132b] text-slate-300 border-slate-700/70 hover:border-festiveGold-500/40'
+                          ? 'bg-gradient-to-r from-festiveRed-600 to-rose-700 text-white border-2 border-festiveGold-400 shadow-[0_0_12px_rgba(217,4,41,0.5)] font-black'
+                          : 'bg-[#141414] text-slate-300 border border-festiveGold-400/60 hover:border-festiveGold-400'
                       }`}
                     >
                       <span>{div}</span>
@@ -605,12 +619,12 @@ export const Explore: React.FC<ExploreProps> = ({
               </div>
 
               {userLocation && (
-                <div className="px-3 py-2 rounded-xl bg-gradient-to-r from-blue-950/90 to-slate-900 border border-sky-500/40 text-xs text-sky-200 flex items-center justify-between shadow-sm">
-                  <span className="flex items-center gap-1.5 font-bold text-sky-300">
-                    <Navigation className="w-3.5 h-3.5 text-sky-400 animate-pulse" />
+                <div className="px-3.5 py-2 rounded-xl bg-[#141414] border border-neutral-800 text-xs text-slate-300 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 font-bold text-[#c49640]">
+                    <Navigation className="w-3.5 h-3.5 text-[#c49640] animate-pulse" />
                     <span>Sorted Nearest: <strong className="text-white">{userLocation.addressName || 'Your Location'}</strong></span>
                   </span>
-                  <span className="text-[10px] font-extrabold text-sky-300 bg-sky-950 px-2 py-0.5 rounded-full border border-sky-500/30">
+                  <span className="text-[10px] font-extrabold text-slate-400 bg-black/70 px-2.5 py-0.5 rounded-full">
                     Walking Order
                   </span>
                 </div>
