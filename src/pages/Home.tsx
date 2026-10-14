@@ -5,7 +5,6 @@ import {
   Compass,
   MapPin, 
   Sparkles, 
-  BookOpen, 
   ArrowRight,
   Maximize2,
   Navigation,
@@ -16,7 +15,6 @@ import {
 import { formatDistance, getMetroDistanceText } from '../utils/geo';
 import { SearchBar } from '../components/SearchBar';
 import { searchPandals } from '../utils/search';
-import rawQualityNotes from '../data/quality_notes.json';
 
 import durgaHeritageImg from '../assets/durga_heritage.jpg';
 import grandThemeImg from '../assets/grand_theme.jpg';
@@ -568,36 +566,6 @@ export const Home: React.FC<HomeProps> = ({
             onRequestLocation={onRequestLocation}
             className="w-full h-full"
           />
-        </div>
-      </section>
-
-      {/* 7. Official Survey Quality Notes & Transparency Section */}
-      <section className="px-4 sm:px-6 lg:px-12 py-5 max-w-6xl mx-auto w-full">
-        <div className="p-4 sm:p-5 rounded-2xl bg-[#111111] border border-neutral-800">
-          <div className="flex items-center gap-2 mb-3">
-            <BookOpen className="w-4 h-4 text-festiveGold-400" />
-            <h3 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider">
-              Official Route Notes & Transparency Advisories
-            </h3>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-300 leading-relaxed">
-            {rawQualityNotes.map((note) => (
-              <div key={note.id} className="p-3 rounded-xl bg-[#181818] border border-neutral-800 space-y-1">
-                <div className="flex items-center justify-between gap-1.5 font-bold">
-                  <span className="text-white text-xs leading-snug truncate flex-1">
-                    {note.title}
-                  </span>
-                  <span className="text-[10px] text-festiveGold-400 bg-festiveGold-500/10 px-2 py-0.5 rounded-full border border-festiveGold-400/80 whitespace-nowrap shrink-0">
-                    {note.status}
-                  </span>
-                </div>
-                <p className="text-slate-400 text-[11px] leading-relaxed line-clamp-2">{note.content}</p>
-                <span className="text-[10px] text-slate-500 block">
-                  {note.division} • Page {note.page}
-                </span>
-              </div>
-            ))}
-          </div>
         </div>
       </section>
 
